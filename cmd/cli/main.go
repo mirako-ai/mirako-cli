@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/mirako-ai/mirako-cli/cmd/cli/root"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/root"
 )
 
 func main() {
