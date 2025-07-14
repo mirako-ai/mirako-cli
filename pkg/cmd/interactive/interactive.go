@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"text/tabwriter"
+	"github.com/mirako-ai/mirako-cli/pkg/ui"
 
 	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/api"
@@ -72,9 +72,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "SESSION ID\tMODEL\tSTATE\tDESIRED STATE\tSTART TIME")
-
+	t := ui.NewSessionTable(os.Stdout)
 	for _, session := range *resp.JSON200.Data {
 		state := ""
 		if session.State != nil {
@@ -86,16 +84,15 @@ func runList(cmd *cobra.Command, args []string) error {
 			desiredState = *session.DesiredState
 		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		t.AddRow([]interface{}{
 			session.SessionId,
 			session.MetisModel,
 			state,
 			desiredState,
-			session.StartTime.Format("2006-01-02 15:04"),
-		)
+			ui.FormatTimestamp(session.StartTime),
+		})
 	}
-
-	w.Flush()
+	t.Flush()
 	return nil
 }
 

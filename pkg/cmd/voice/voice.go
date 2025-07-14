@@ -2,7 +2,7 @@ package voice
 
 import (
 	"fmt"
-	"text/tabwriter"
+	"github.com/mirako-ai/mirako-cli/pkg/ui"
 
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
@@ -57,9 +57,7 @@ func runListProfiles(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tDESCRIPTION")
-
+	t := ui.NewVoiceProfileTable(cmd.OutOrStdout())
 	for _, profile := range *resp.JSON200.Data {
 		name := ""
 		if profile.Name != nil {
@@ -69,13 +67,12 @@ func runListProfiles(cmd *cobra.Command, args []string) error {
 		if profile.Description != nil {
 			description = *profile.Description
 		}
-		fmt.Fprintf(w, "%s\t%s\t%s\n",
+		t.AddRow([]interface{}{
 			profile.Id,
 			name,
 			description,
-		)
+		})
 	}
-
-	w.Flush()
+	t.Flush()
 	return nil
 }

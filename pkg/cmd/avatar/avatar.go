@@ -5,10 +5,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
@@ -82,19 +82,16 @@ func runList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tSTATUS\tCREATED")
-
+	t := ui.NewAvatarTable(os.Stdout)
 	for _, avatar := range *resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			avatar.Id,
+		t.AddRow([]interface{}{
 			avatar.Name,
+			avatar.Id,
 			avatar.Status,
-			avatar.CreatedAt.Format("2006-01-02 15:04"),
-		)
+			ui.FormatTimestamp(avatar.CreatedAt),
+		})
 	}
-
-	w.Flush()
+	t.Flush()
 	return nil
 }
 
@@ -133,7 +130,7 @@ func runView(cmd *cobra.Command, args []string) error {
 	fmt.Printf("ID: %s\n", resp.Data.Id)
 	fmt.Printf("Name: %s\n", resp.Data.Name)
 	fmt.Printf("Status: %s\n", resp.Data.Status)
-	fmt.Printf("Created: %s\n", resp.Data.CreatedAt.Format("2006-01-02 15:04"))
+	fmt.Printf("Created: %s\n", resp.Data.CreatedAt.Local().Format("2006-01-02 15:04"))
 	fmt.Printf("User ID: %s\n", resp.Data.UserId)
 
 	if resp.Data.Themes != nil && len(*resp.Data.Themes) > 0 {
@@ -487,28 +484,13 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✅ Avatar build started!\n")
 	fmt.Printf("   Avatar ID: %s\n", avatarID)
 
-	// Give user the option to background the build
+	// Provide helpful guidance instead of prompting
 	fmt.Printf("\n⏳ Avatar build in progress...\n")
-	fmt.Printf("Avatar ID: %s\n", avatarID)
-
-	// Check if user wants to background the build
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("\nWould you like to background this build and check status later? (y/N): ")
-	response, _ := reader.ReadString('\n')
-	response = strings.TrimSpace(strings.ToLower(response))
-
-	if response == "y" || response == "yes" {
-		fmt.Printf("\n✅ Build backgrounded!\n")
-		fmt.Printf("   Avatar ID: %s\n", avatarID)
-		fmt.Printf("\n💡 Tip: You can check build status with:\n")
-		fmt.Printf("   mirako avatar view %s\n", avatarID)
-		fmt.Printf("\n💡 Or view all your avatars with:\n")
-		fmt.Printf("   mirako avatar list\n")
-		return nil
-	}
-
-	// Continue with polling if user chooses to wait
-	fmt.Printf("\n⏳ Waiting for build to complete...\n")
+	fmt.Printf("\n💡 Check the avatar build status anytime with:\n")
+	fmt.Printf("   mirako avatar list\n")
+	fmt.Printf("\n💡 Or view details for this avatar with:\n")
+	fmt.Printf("   mirako avatar view %s\n", avatarID)
+	fmt.Printf("\n✅ You can safely quit this program now (Ctrl+C). The build will continue in the background.\n")
 
 	// Use separate tickers for polling and spinner animation
 	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)

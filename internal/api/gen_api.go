@@ -534,7 +534,7 @@ type TTSOutput struct {
 
 // TTSParams defines model for TTSParams.
 type TTSParams struct {
-	// FragmentInterval Control the length of pause between sentenses. Default is 0.3.
+	// FragmentInterval Control the length of pause between sentenses. Default is 0.1.
 	FragmentInterval *float32 `json:"fragment_interval,omitempty"`
 
 	// Temperature The temperature for the TTS model, controls the randomness of the output. Default is 1.0.
