@@ -1,9 +1,14 @@
 package video
 
 import (
+	"bufio"
 	"encoding/base64"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/api"
@@ -62,6 +67,7 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("image path is required. Use --image flag")
 	}
 
+	outputPath, _ := cmd.Flags().GetString("output")
 	noSave, _ := cmd.Flags().GetBool("no-save")
 	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
 
@@ -141,9 +147,54 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 						return nil
 					}
 
-					// Note: FileUrl is a URL, not base64 data
-					fmt.Printf("🎥 Video generated successfully!\n")
-					fmt.Printf("   Video URL: %s\n", *statusResp.JSON200.Data.FileUrl)
+					// Download the video file from URL
+					videoURL := *statusResp.JSON200.Data.FileUrl
+					fmt.Printf("🎥 Downloading video...\n")
+
+					// Determine output path
+					if outputPath == "" {
+						defaultFilename := fmt.Sprintf("video_%s.mp4", time.Now().Format("20060102_150405"))
+						outputPath = filepath.Join(cfg.DefaultSavePath, defaultFilename)
+					}
+
+					// Ensure .mp4 extension
+					if !strings.HasSuffix(strings.ToLower(outputPath), ".mp4") {
+						outputPath += ".mp4"
+					}
+
+					// Create directory if it doesn't exist
+					dir := filepath.Dir(outputPath)
+					if err := os.MkdirAll(dir, 0755); err != nil {
+						return fmt.Errorf("failed to create directory: %w", err)
+					}
+
+					// Download the video
+					resp, err := http.Get(videoURL)
+					if err != nil {
+						return fmt.Errorf("failed to download video: %w", err)
+					}
+					defer resp.Body.Close()
+
+					if resp.StatusCode != http.StatusOK {
+						return fmt.Errorf("failed to download video: HTTP %d", resp.StatusCode)
+					}
+
+					// Create the output file
+					outFile, err := os.Create(outputPath)
+					if err != nil {
+						return fmt.Errorf("failed to create output file: %w", err)
+					}
+					defer outFile.Close()
+
+					// Copy the response body to the file
+					bytesWritten, err := io.Copy(outFile, resp.Body)
+					if err != nil {
+						return fmt.Errorf("failed to save video: %w", err)
+					}
+
+					fmt.Printf("✅ Video saved successfully!\n")
+					fmt.Printf("   File: %s\n", outputPath)
+					fmt.Printf("   Size: %d bytes\n", bytesWritten)
 					if statusResp.JSON200.Data.OutputDuration != nil {
 						fmt.Printf("   Duration: %.2f seconds\n", *statusResp.JSON200.Data.OutputDuration)
 					}
@@ -201,12 +252,76 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Task ID: %s\n", resp.JSON200.Data.TaskId)
 
 	if resp.JSON200.Data.Status == api.GenerateTalkingAvatarTaskOutputStatusCOMPLETED {
-		fmt.Printf("✅ Talking avatar video generated successfully!\n")
 		if resp.JSON200.Data.FileUrl != nil {
-			fmt.Printf("   Video URL: %s\n", *resp.JSON200.Data.FileUrl)
-		}
-		if resp.JSON200.Data.OutputDuration != nil {
-			fmt.Printf("   Duration: %.2f seconds\n", *resp.JSON200.Data.OutputDuration)
+			videoURL := *resp.JSON200.Data.FileUrl
+			fmt.Printf("✅ Talking avatar video generated successfully!\n")
+			fmt.Printf("   Video URL: %s\n", videoURL)
+			if resp.JSON200.Data.OutputDuration != nil {
+				fmt.Printf("   Duration: %.2f seconds\n", *resp.JSON200.Data.OutputDuration)
+			}
+
+			// Ask user if they want to download the video
+			reader := bufio.NewReader(os.Stdin)
+			fmt.Print("\nWould you like to download the generated video? (Y/n): ")
+			response, _ := reader.ReadString('\n')
+			response = strings.TrimSpace(strings.ToLower(response))
+
+			if response == "" || response == "y" || response == "yes" {
+				// Generate default filename
+				defaultFilename := fmt.Sprintf("video_%s.mp4", taskID)
+				defaultPath := filepath.Join(cfg.DefaultSavePath, defaultFilename)
+
+				// Ask for save location
+				fmt.Printf("Enter save path [%s]: ", defaultPath)
+				savePath, _ := reader.ReadString('\n')
+				savePath = strings.TrimSpace(savePath)
+
+				if savePath == "" {
+					savePath = defaultPath
+				}
+
+				// Ensure .mp4 extension
+				if !strings.HasSuffix(strings.ToLower(savePath), ".mp4") {
+					savePath += ".mp4"
+				}
+
+				// Create directory if it doesn't exist
+				dir := filepath.Dir(savePath)
+				if err := os.MkdirAll(dir, 0755); err != nil {
+					return fmt.Errorf("failed to create directory: %w", err)
+				}
+
+				// Download the video
+				fmt.Printf("🎥 Downloading video...\n")
+				httpResp, err := http.Get(videoURL)
+				if err != nil {
+					return fmt.Errorf("failed to download video: %w", err)
+				}
+				defer httpResp.Body.Close()
+
+				if httpResp.StatusCode != http.StatusOK {
+					return fmt.Errorf("failed to download video: HTTP %d", httpResp.StatusCode)
+				}
+
+				// Create the output file
+				outFile, err := os.Create(savePath)
+				if err != nil {
+					return fmt.Errorf("failed to create output file: %w", err)
+				}
+				defer outFile.Close()
+
+				// Copy the response body to the file
+				bytesWritten, err := io.Copy(outFile, httpResp.Body)
+				if err != nil {
+					return fmt.Errorf("failed to save video: %w", err)
+				}
+
+				fmt.Printf("✅ Video saved successfully!\n")
+				fmt.Printf("   File: %s\n", savePath)
+				fmt.Printf("   Size: %d bytes\n", bytesWritten)
+			} else {
+				fmt.Println("Video not downloaded.")
+			}
 		}
 	}
 
