@@ -111,3 +111,25 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, aspectRatio a
 func (c *Client) GetImageStatus(ctx context.Context, taskID string) (*api.GetV1ImageAsyncGenerateTaskIdStatusResponse, error) {
 	return c.apiClient.GetV1ImageAsyncGenerateTaskIdStatusWithResponse(ctx, taskID)
 }
+
+// Video methods
+func (c *Client) GenerateTalkingAvatar(ctx context.Context, audio, image string) (*api.PostV1VideoAsyncGenerateTalkingAvatarResponse, error) {
+	request := api.PostV1VideoAsyncGenerateTalkingAvatarJSONRequestBody{
+		Audio: audio,
+		Image: image,
+	}
+	return c.apiClient.PostV1VideoAsyncGenerateTalkingAvatarWithResponse(ctx, request)
+}
+
+func (c *Client) GetTalkingAvatarStatus(ctx context.Context, taskID string) (*api.GetV1VideoAsyncGenerateTalkingAvatarTaskIdStatusResponse, error) {
+	return c.apiClient.GetV1VideoAsyncGenerateTalkingAvatarTaskIdStatusWithResponse(ctx, taskID)
+}
+
+// Avatar build methods
+func (c *Client) BuildAvatar(ctx context.Context, name, image string) (*api.PostV1AvatarAsyncBuildResponse, error) {
+	request := api.PostV1AvatarAsyncBuildJSONRequestBody{
+		Name:  name,
+		Image: image,
+	}
+	return c.apiClient.PostV1AvatarAsyncBuildWithResponse(ctx, request)
+}

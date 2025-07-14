@@ -10,11 +10,12 @@ import (
 )
 
 type Config struct {
-	APIToken    string `mapstructure:"api_token"`
-	APIURL      string `mapstructure:"api_url"`
-	DefaultModel string `mapstructure:"default_model"`
-	DefaultVoice string `mapstructure:"default_voice"`
-	OutputFormat string `mapstructure:"output_format"`
+	APIToken        string `mapstructure:"api_token"`
+	APIURL          string `mapstructure:"api_url"`
+	DefaultModel    string `mapstructure:"default_model"`
+	DefaultVoice    string `mapstructure:"default_voice"`
+	OutputFormat    string `mapstructure:"output_format"`
+	DefaultSavePath string `mapstructure:"default_save_path"`
 }
 
 var (
@@ -35,9 +36,10 @@ func init() {
 func Load() (*Config, error) {
 	cfg := &Config{
 		APIURL:       "https://api.mirako.ai",
-		DefaultModel: "metis-2.5",
-		DefaultVoice: "mira-korner",
-		OutputFormat: "table",
+		DefaultModel:    "metis-2.5",
+		DefaultVoice:    "mira-korner",
+		OutputFormat:    "table",
+		DefaultSavePath: ".",
 	}
 
 	// Create config directory if it doesn't exist
@@ -79,6 +81,7 @@ func (c *Config) Save() error {
 	viper.Set("default_model", c.DefaultModel)
 	viper.Set("default_voice", c.DefaultVoice)
 	viper.Set("output_format", c.OutputFormat)
+	viper.Set("default_save_path", c.DefaultSavePath)
 
 	if err := viper.WriteConfigAs(ConfigFile); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)

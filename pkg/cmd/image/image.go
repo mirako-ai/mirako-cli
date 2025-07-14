@@ -1,14 +1,12 @@
-package avatar
+package image
 
 import (
 	"bufio"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/tabwriter"
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/api"
@@ -19,143 +17,31 @@ import (
 
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
-func NewAvatarCmd() *cobra.Command {
+func NewImageCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "avatar",
-		Short: "Manage avatars",
-		Long:  `Create, list, and manage AI avatars`,
+		Use:   "image",
+		Short: "Manage images",
+		Long:  `Generate and manage AI images`,
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newViewCmd())
 	cmd.AddCommand(newGenerateCmd())
-	cmd.AddCommand(newBuildCmd())
 	cmd.AddCommand(newStatusCmd())
 
 	return cmd
 }
 
-func newListCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List all avatars",
-		Long:  `List all avatars for the current user`,
-		RunE:  runList,
-	}
-
-	cmd.Flags().BoolP("json", "j", false, "Output in JSON format")
-
-	return cmd
-}
-
-func runList(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-
-	client, err := client.New(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
-	}
-
-	resp, err := client.ListAvatars(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to list avatars: %w", err)
-	}
-
-	useJSON, _ := cmd.Flags().GetBool("json")
-	if useJSON {
-		data, _ := json.MarshalIndent(resp, "", "  ")
-		fmt.Println(string(data))
-		return nil
-	}
-
-	if resp.Data == nil || len(*resp.Data) == 0 {
-		fmt.Println("No avatars found")
-		return nil
-	}
-
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintln(w, "ID\tNAME\tSTATUS\tCREATED")
-
-	for _, avatar := range *resp.Data {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n",
-			avatar.Id,
-			avatar.Name,
-			avatar.Status,
-			avatar.CreatedAt.Format("2006-01-02 15:04"),
-		)
-	}
-
-	w.Flush()
-	return nil
-}
-
-func newViewCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "view [avatar-id]",
-		Short: "View avatar details",
-		Long:  `View detailed information about a specific avatar`,
-		Args:  cobra.ExactArgs(1),
-		RunE:  runView,
-	}
-}
-
-func runView(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-
-	client, err := client.New(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
-	}
-
-	avatarID := args[0]
-	resp, err := client.GetAvatar(ctx, avatarID)
-	if err != nil {
-		return fmt.Errorf("failed to get avatar: %w", err)
-	}
-
-	fmt.Printf("ID: %s\n", resp.Data.Id)
-	fmt.Printf("Name: %s\n", resp.Data.Name)
-	fmt.Printf("Status: %s\n", resp.Data.Status)
-	fmt.Printf("Created: %s\n", resp.Data.CreatedAt.Format("2006-01-02 15:04"))
-	fmt.Printf("User ID: %s\n", resp.Data.UserId)
-
-	if resp.Data.Themes != nil && len(*resp.Data.Themes) > 0 {
-		fmt.Println("\nThemes:")
-		for _, theme := range *resp.Data.Themes {
-			fmt.Printf("  - %s:\n", theme.Name)
-			if theme.KeyImage != nil {
-				fmt.Printf("    Key Image: %s\n", *theme.KeyImage)
-			}
-			if theme.LiveVideo != nil {
-				fmt.Printf("    Live Video: %s\n", *theme.LiveVideo)
-			}
-		}
-	}
-
-	return nil
-}
-
 func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate",
-		Short: "Generate a new avatar",
-		Long:  `Generate a new avatar using AI and save it to disk`,
+		Short: "Generate a new image",
+		Long:  `Generate a new image using AI and save it to disk`,
 		RunE:  runGenerate,
 	}
 
-	cmd.Flags().StringP("prompt", "p", "", "Prompt for avatar generation")
+	cmd.Flags().StringP("prompt", "p", "", "Prompt for image generation")
+	cmd.Flags().StringP("aspect-ratio", "a", "16:9", "Aspect ratio for the image (1:1, 16:9, 2:3, 3:2, 3:4, 4:3, 9:16)")
 	cmd.Flags().Int64P("seed", "s", 0, "Seed for reproducible generation (optional)")
-	cmd.Flags().StringP("output", "o", "", "Output file path for the generated avatar (e.g., ./output/avatar.jpg)")
+	cmd.Flags().StringP("output", "o", "", "Output file path for the generated image (e.g., ./output/image.jpg)")
 	cmd.Flags().BoolP("no-save", "n", false, "Skip saving the image to disk")
 	cmd.Flags().IntP("poll-interval", "i", 2, "Polling interval in seconds for checking status")
 
@@ -175,6 +61,8 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("prompt is required. Use --prompt flag")
 	}
 
+	aspectRatioStr, _ := cmd.Flags().GetString("aspect-ratio")
+	aspectRatio := api.AsyncGenerateImageApiRequestBodyAspectRatio(aspectRatioStr)
 	outputPath, _ := cmd.Flags().GetString("output")
 	noSave, _ := cmd.Flags().GetBool("no-save")
 	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
@@ -191,10 +79,10 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Start generation
-	fmt.Printf("🚀 Starting avatar generation...\n")
-	resp, err := client.GenerateAvatar(ctx, prompt, seedPtr)
+	fmt.Printf("🚀 Starting image generation...\n")
+	resp, err := client.GenerateImage(ctx, prompt, aspectRatio, seedPtr)
 	if err != nil {
-		return fmt.Errorf("failed to generate avatar: %w", err)
+		return fmt.Errorf("failed to generate image: %w", err)
 	}
 
 	if resp.JSON200 == nil {
@@ -202,7 +90,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	taskID := resp.JSON200.Data.TaskId
-	fmt.Printf("✅ Avatar generation started!\n")
+	fmt.Printf("✅ Image generation started!\n")
 	fmt.Printf("   Task ID: %s\n", taskID)
 
 	// Poll for status until complete
@@ -224,7 +112,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			fmt.Print(clearLine) // Clear the spinner line
 			return fmt.Errorf("operation cancelled: %w", ctx.Err())
 		case <-pollTicker.C:
-			statusResp, err := client.GetAvatarStatus(ctx, taskID)
+			statusResp, err := client.GetImageStatus(ctx, taskID)
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
 				return fmt.Errorf("failed to check status: %w", err)
@@ -237,7 +125,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 			currentStatus = string(statusResp.JSON200.Data.Status)
 
-			if statusResp.JSON200.Data.Status == api.GenerateAvatarTaskOutputStatusCOMPLETED {
+			if statusResp.JSON200.Data.Status == "COMPLETED" {
 				fmt.Print(clearLine) // Clear the spinner line
 				fmt.Printf("✅ Generation completed!\n")
 
@@ -252,7 +140,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 					// Determine output path
 					if outputPath == "" {
-						defaultFilename := fmt.Sprintf("avatar_%s.jpg", time.Now().Format("20060102_150405"))
+						defaultFilename := fmt.Sprintf("image_%s.jpg", time.Now().Format("20060102_150405"))
 						outputPath = filepath.Join(cfg.DefaultSavePath, defaultFilename)
 					}
 
@@ -290,9 +178,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 				}
 
 				return nil
-			} else if statusResp.JSON200.Data.Status == api.GenerateAvatarTaskOutputStatusFAILED || statusResp.JSON200.Data.Status == api.GenerateAvatarTaskOutputStatusCANCELED || statusResp.JSON200.Data.Status == api.GenerateAvatarTaskOutputStatusTIMEDOUT {
+			} else if statusResp.JSON200.Data.Status == "FAILED" || statusResp.JSON200.Data.Status == "CANCELED" || statusResp.JSON200.Data.Status == "TIMEDOUT" {
 				fmt.Print(clearLine) // Clear the spinner line
-				return fmt.Errorf("avatar generation failed with status: %s", statusResp.JSON200.Data.Status)
+				return fmt.Errorf("image generation failed with status: %s", statusResp.JSON200.Data.Status)
 			}
 			// Update status but don't draw here - spinner ticker handles animation
 		case <-spinnerTicker.C:
@@ -307,8 +195,8 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 func newStatusCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "status [task-id]",
-		Short: "Check avatar generation status",
-		Long:  `Check the status of an avatar generation task`,
+		Short: "Check image generation status",
+		Long:  `Check the status of an image generation task`,
 		Args:  cobra.ExactArgs(1),
 		RunE:  runStatus,
 	}
@@ -329,7 +217,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
-	resp, err := client.GetAvatarStatus(ctx, taskID)
+	resp, err := client.GetImageStatus(ctx, taskID)
 	if err != nil {
 		return fmt.Errorf("failed to get status: %w", err)
 	}
@@ -341,7 +229,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Task ID: %s\n", resp.JSON200.Data.TaskId)
 
 	if resp.JSON200.Data.Image != nil {
-		fmt.Printf("✅ Avatar generated successfully!\n")
+		fmt.Printf("✅ Image generated successfully!\n")
 		fmt.Printf("   Image: %d bytes\n", len(*resp.JSON200.Data.Image))
 
 		// Ask user if they want to save the image
@@ -352,7 +240,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 		if response == "" || response == "y" || response == "yes" {
 			// Generate default filename
-			defaultFilename := fmt.Sprintf("avatar_%s.jpg", taskID)
+			defaultFilename := fmt.Sprintf("image_%s.jpg", taskID)
 			defaultPath := filepath.Join(cfg.DefaultSavePath, defaultFilename)
 
 			// Ask for save location
@@ -404,64 +292,3 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func newBuildCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "build",
-		Short: "Build a new avatar from image",
-		Long:  `Build a new avatar from a base image using AI and save it to disk`,
-		RunE:  runBuild,
-	}
-
-	cmd.Flags().StringP("name", "n", "", "Name for the new avatar")
-	cmd.Flags().StringP("image", "i", "", "Path to the base image file")
-
-	return cmd
-}
-
-func runBuild(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := config.Load()
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-
-	name, _ := cmd.Flags().GetString("name")
-	if name == "" {
-		return fmt.Errorf("name is required. Use --name flag")
-	}
-
-	imagePath, _ := cmd.Flags().GetString("image")
-	if imagePath == "" {
-		return fmt.Errorf("image path is required. Use --image flag")
-	}
-
-	// Read and encode the image file
-	imageData, err := os.ReadFile(imagePath)
-	if err != nil {
-		return fmt.Errorf("failed to read image file: %w", err)
-	}
-
-	// Encode as base64
-	encodedImage := base64.StdEncoding.EncodeToString(imageData)
-
-	client, err := client.New(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
-	}
-
-	// Start build
-	fmt.Printf("🚀 Starting avatar build...\n")
-	resp, err := client.BuildAvatar(ctx, name, encodedImage)
-	if err != nil {
-		return fmt.Errorf("failed to build avatar: %w", err)
-	}
-
-	if resp.JSON200 == nil {
-		return fmt.Errorf("unexpected response from server")
-	}
-
-	fmt.Printf("✅ Avatar built successfully!\n")
-	fmt.Printf("   Avatar ID: %s\n", resp.JSON200.Data.AvatarId)
-	return nil
-}

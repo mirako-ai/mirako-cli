@@ -9,7 +9,9 @@ import (
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/auth"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/avatar"
 	configcmd "github.com/mirako-ai/mirako-cli/pkg/cmd/config"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/image"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/interactive"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/video"
 )
 
 var cfg *config.Config
@@ -46,7 +48,9 @@ func init() {
 	rootCmd.AddCommand(auth.NewAuthCmd())
 	rootCmd.AddCommand(avatar.NewAvatarCmd())
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
+	rootCmd.AddCommand(image.NewImageCmd())
 	rootCmd.AddCommand(interactive.NewInteractiveCmd())
+	rootCmd.AddCommand(video.NewVideoCmd())
 }
 
 func initConfig() {

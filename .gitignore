@@ -33,5 +33,5 @@ Thumbs.db
 
 # AI agent files
 .claude/
-CLAUDE.md
+CLAUDE.local.md
 DESIGN.md
