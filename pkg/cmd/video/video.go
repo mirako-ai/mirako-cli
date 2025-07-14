@@ -209,7 +209,7 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 		case <-spinnerTicker.C:
 			// Update spinner animation smoothly
 			frame := spinnerFrames[spinnerIndex%len(spinnerFrames)]
-			fmt.Printf("\r%s Status: %s", frame, currentStatus)
+			fmt.Printf("\r\033[K%s Status: %s", frame, currentStatus)
 			spinnerIndex++
 		}
 	}
