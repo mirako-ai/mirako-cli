@@ -12,6 +12,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -82,6 +83,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("🚀 Starting image generation...\n")
 	resp, err := client.GenerateImage(ctx, prompt, aspectRatio, seedPtr)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to generate image: %w", err)
 	}
 
@@ -115,6 +119,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			statusResp, err := client.GetImageStatus(ctx, taskID)
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
+				if apiErr, ok := errors.IsAPIError(err); ok {
+					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}
 
@@ -219,6 +226,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.GetImageStatus(ctx, taskID)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 

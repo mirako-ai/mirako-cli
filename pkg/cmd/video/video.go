@@ -14,6 +14,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -94,6 +95,9 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 	fmt.Printf("🚀 Starting talking avatar video generation...\n")
 	resp, err := client.GenerateTalkingAvatar(ctx, audioBase64, imageBase64)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to generate talking avatar video: %w", err)
 	}
 
@@ -127,6 +131,9 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 			statusResp, err := client.GetTalkingAvatarStatus(ctx, taskID)
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
+				if apiErr, ok := errors.IsAPIError(err); ok {
+					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}
 
@@ -242,6 +249,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.GetTalkingAvatarStatus(ctx, taskID)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 

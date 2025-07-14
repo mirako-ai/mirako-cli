@@ -14,6 +14,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -63,6 +64,9 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.ListAvatars(ctx)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to list avatars: %w", err)
 	}
 
@@ -120,6 +124,9 @@ func runView(cmd *cobra.Command, args []string) error {
 	avatarID := args[0]
 	resp, err := client.GetAvatar(ctx, avatarID)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to get avatar: %w", err)
 	}
 
@@ -194,6 +201,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("🚀 Starting avatar generation...\n")
 	resp, err := client.GenerateAvatar(ctx, prompt, seedPtr)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to generate avatar: %w", err)
 	}
 
@@ -227,6 +237,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			statusResp, err := client.GetAvatarStatus(ctx, taskID)
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
+				if apiErr, ok := errors.IsAPIError(err); ok {
+					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}
 
@@ -331,6 +344,9 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.GetAvatarStatus(ctx, taskID)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 
@@ -457,6 +473,9 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	fmt.Printf("🚀 Starting avatar build...\n")
 	resp, err := client.BuildAvatar(ctx, name, encodedImage)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to build avatar: %w", err)
 	}
 
@@ -510,6 +529,9 @@ func runBuild(cmd *cobra.Command, args []string) error {
 			avatarResp, err := client.GetAvatar(ctx, avatarID)
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
+				if apiErr, ok := errors.IsAPIError(err); ok {
+					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+				}
 				return fmt.Errorf("failed to check avatar status: %w", err)
 			}
 

@@ -9,8 +9,9 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/api"
-	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/client"
+	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/internal/errors"
 )
 
 func NewInteractiveCmd() *cobra.Command {
@@ -53,6 +54,9 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.ListSessions(context.Background())
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to list sessions: %w", err)
 	}
 
@@ -147,6 +151,9 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.StartSession(context.Background(), body)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to start session: %w", err)
 	}
 
@@ -185,6 +192,9 @@ func runStop(cmd *cobra.Command, args []string) error {
 
 	resp, err := client.StopSessions(context.Background(), args)
 	if err != nil {
+		if apiErr, ok := errors.IsAPIError(err); ok {
+			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+		}
 		return fmt.Errorf("failed to stop sessions: %w", err)
 	}
 
