@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/auth"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/avatar"
@@ -12,6 +11,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/image"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/interactive"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/video"
+	"github.com/spf13/cobra"
 )
 
 var cfg *config.Config
@@ -42,7 +42,7 @@ func init() {
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
 	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.mirako/config.yml)")
 	rootCmd.PersistentFlags().String("api-token", "", "API token for authentication")
-	rootCmd.PersistentFlags().String("api-url", "", "API URL (default https://api.mirako.ai)")
+	rootCmd.PersistentFlags().String("api-url", "", "API URL (default https://mirako.co)")
 
 	// Add subcommands
 	rootCmd.AddCommand(auth.NewAuthCmd())
@@ -72,4 +72,3 @@ func initConfig() {
 		cfg.APIURL = apiURL
 	}
 }
-

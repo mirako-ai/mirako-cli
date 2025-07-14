@@ -35,7 +35,7 @@ func init() {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		APIURL:       "https://api.mirako.ai",
+		APIURL:          "https://mirako.co",
 		DefaultModel:    "metis-2.5",
 		DefaultVoice:    "mira-korner",
 		OutputFormat:    "table",
@@ -93,3 +93,4 @@ func (c *Config) Save() error {
 func (c *Config) IsAuthenticated() bool {
 	return c.APIToken != ""
 }
+

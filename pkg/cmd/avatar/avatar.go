@@ -408,12 +408,13 @@ func newBuildCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "build",
 		Short: "Build a new avatar from image",
-		Long:  `Build a new avatar from a base image using AI and save it to disk`,
+		Long:  `Build a new avatar from a base image, which then you can generate images and create interactive with it.`,
 		RunE:  runBuild,
 	}
 
 	cmd.Flags().StringP("name", "n", "", "Name for the new avatar")
 	cmd.Flags().StringP("image", "i", "", "Path to the base image file")
+	cmd.Flags().IntP("poll-interval", "p", 10, "Polling interval in seconds for checking status")
 
 	return cmd
 }
@@ -436,6 +437,8 @@ func runBuild(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("image path is required. Use --image flag")
 	}
 
+	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
+
 	// Read and encode the image file
 	imageData, err := os.ReadFile(imagePath)
 	if err != nil {
@@ -457,11 +460,83 @@ func runBuild(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to build avatar: %w", err)
 	}
 
-	if resp.JSON200 == nil {
+	if resp.JSON200 == nil || resp.JSON200.Data == nil {
 		return fmt.Errorf("unexpected response from server")
 	}
 
-	fmt.Printf("✅ Avatar built successfully!\n")
-	fmt.Printf("   Avatar ID: %s\n", resp.JSON200.Data.AvatarId)
-	return nil
+	avatarID := resp.JSON200.Data.AvatarId
+	fmt.Printf("✅ Avatar build started!\n")
+	fmt.Printf("   Avatar ID: %s\n", avatarID)
+
+	// Give user the option to background the build
+	fmt.Printf("\n⏳ Avatar build in progress...\n")
+	fmt.Printf("Avatar ID: %s\n", avatarID)
+
+	// Check if user wants to background the build
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("\nWould you like to background this build and check status later? (y/N): ")
+	response, _ := reader.ReadString('\n')
+	response = strings.TrimSpace(strings.ToLower(response))
+
+	if response == "y" || response == "yes" {
+		fmt.Printf("\n✅ Build backgrounded!\n")
+		fmt.Printf("   Avatar ID: %s\n", avatarID)
+		fmt.Printf("\n💡 Tip: You can check build status with:\n")
+		fmt.Printf("   mirako avatar view %s\n", avatarID)
+		fmt.Printf("\n💡 Or view all your avatars with:\n")
+		fmt.Printf("   mirako avatar list\n")
+		return nil
+	}
+
+	// Continue with polling if user chooses to wait
+	fmt.Printf("\n⏳ Waiting for build to complete...\n")
+
+	// Use separate tickers for polling and spinner animation
+	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
+	spinnerTicker := time.NewTicker(100 * time.Millisecond) // Smooth spinner animation
+	defer pollTicker.Stop()
+	defer spinnerTicker.Stop()
+
+	spinnerIndex := 0
+	currentStatus := "PENDING" // Initial status for avatar build
+	clearLine := "\r\033[K"    // ANSI escape codes to clear the line
+
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Print(clearLine) // Clear the spinner line
+			return fmt.Errorf("operation cancelled: %w", ctx.Err())
+		case <-pollTicker.C:
+			avatarResp, err := client.GetAvatar(ctx, avatarID)
+			if err != nil {
+				fmt.Print(clearLine) // Clear the spinner line
+				return fmt.Errorf("failed to check avatar status: %w", err)
+			}
+
+			if avatarResp == nil {
+				fmt.Print(clearLine) // Clear the spinner line
+				return fmt.Errorf("unexpected response from server")
+			}
+
+			currentStatus = string(avatarResp.Data.Status)
+
+			if avatarResp.Data.Status == api.READY {
+				fmt.Print(clearLine) // Clear the spinner line
+				fmt.Printf("✅ Avatar build completed!\n")
+				fmt.Printf("   Avatar ID: %s\n", avatarID)
+				fmt.Printf("\n💡 Tip: You can view all your avatars with:\n")
+				fmt.Printf("   mirako avatar list\n")
+				return nil
+			} else if avatarResp.Data.Status == api.ERROR {
+				fmt.Print(clearLine) // Clear the spinner line
+				return fmt.Errorf("avatar build failed with status: %s", avatarResp.Data.Status)
+			}
+			// Continue polling for other statuses (PENDING, BUILDING)
+		case <-spinnerTicker.C:
+			// Update spinner animation smoothly
+			frame := spinnerFrames[spinnerIndex%len(spinnerFrames)]
+			fmt.Printf("\r\033[K%s Status: %s", frame, currentStatus)
+			spinnerIndex++
+		}
+	}
 }
