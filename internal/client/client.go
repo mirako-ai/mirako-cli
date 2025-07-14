@@ -197,6 +197,39 @@ func (c *Client) GetImageStatus(ctx context.Context, taskID string) (*api.GetV1I
 	return nil, handleErrorResponse(resp.HTTPResponse, "get image status")
 }
 
+// Speech methods
+func (c *Client) SpeechToText(ctx context.Context, audio string) (*api.PostV1SpeechSttResponse, error) {
+	request := api.PostV1SpeechSttJSONRequestBody{
+		Audio: audio,
+	}
+	resp, err := c.apiClient.PostV1SpeechSttWithResponse(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 != nil {
+		return resp, nil
+	}
+	return nil, handleErrorResponse(resp.HTTPResponse, "speech to text")
+}
+
+func (c *Client) TextToSpeech(ctx context.Context, text, voiceProfileID, returnType string, chineseLanguage *api.TTSApiRequestBodyChineseLanguage, opts *api.TTSParams) (*api.PostV1SpeechTtsResponse, error) {
+	request := api.PostV1SpeechTtsJSONRequestBody{
+		Text:            text,
+		VoiceProfileId:  voiceProfileID,
+		ReturnType:      returnType,
+		ChineseLanguage: chineseLanguage,
+		Opts:            opts,
+	}
+	resp, err := c.apiClient.PostV1SpeechTtsWithResponse(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.JSON200 != nil {
+		return resp, nil
+	}
+	return nil, handleErrorResponse(resp.HTTPResponse, "text to speech")
+}
+
 // Video methods
 func (c *Client) GenerateTalkingAvatar(ctx context.Context, audio, image string) (*api.PostV1VideoAsyncGenerateTalkingAvatarResponse, error) {
 	request := api.PostV1VideoAsyncGenerateTalkingAvatarJSONRequestBody{
