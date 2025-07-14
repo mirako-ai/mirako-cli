@@ -10,6 +10,8 @@ import (
 	configcmd "github.com/mirako-ai/mirako-cli/pkg/cmd/config"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/image"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/interactive"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/speech"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/voice"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/video"
 	"github.com/spf13/cobra"
 )
@@ -50,7 +52,9 @@ func init() {
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
 	rootCmd.AddCommand(image.NewImageCmd())
 	rootCmd.AddCommand(interactive.NewInteractiveCmd())
+	rootCmd.AddCommand(speech.NewSpeechCmd())
 	rootCmd.AddCommand(video.NewVideoCmd())
+	rootCmd.AddCommand(voice.NewVoiceCmd())
 }
 
 func initConfig() {
