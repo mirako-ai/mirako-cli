@@ -65,7 +65,7 @@ sudo mv mirako-cli /usr/local/bin/mirako
 
 ### 1. Get Your API Token
 
-1. Visit mirako.ai and create an account
+1. Visit [Mirako Developer Console](https://developer.mirako.ai) and create an account
 2. Navigate to **Settings > API Tokens**
 3. Generate a new token and copy it
 
