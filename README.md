@@ -39,12 +39,12 @@ Afterwards, you can run `mirako` to verify the installation.
 ### Option 2: Go Install
 
 ```bash
-go install github.com/mirako-ai/mirako-cli@latest
+go install github.com/mirako-ai/mirako-cli/cmd/mirako@latest
 
 # Ensure GOPATH/bin is in your PATH
 export PATH=$PATH:$GOPATH/bin
 # Then run
-mirako-cli
+mirako
 ```
 
 ### Option 3: Build from Source
@@ -52,7 +52,7 @@ mirako-cli
 ```bash
 git clone https://github.com/mirako-ai/mirako-cli.git
 cd mirako-cli
-go build -o mirako-cli ./cmd/cli/
+go build -o mirako-cli ./cmd/mirako/
 sudo mv mirako-cli /usr/local/bin/mirako
 ```
 
@@ -313,7 +313,7 @@ go mod tidy
 go generate ./internal/api/...
 
 # Build for development
-go build -o mirako-cli ./cmd/cli/
+go build -o mirako-cli ./cmd/mirako/
 
 # Run tests
 go test ./...

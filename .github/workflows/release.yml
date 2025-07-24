@@ -49,7 +49,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir -p dist
-          go build -ldflags="-s -w" -o dist/mirako${{ matrix.ext }} ./cmd/cli/
+          go build -ldflags="-s -w" -o dist/mirako${{ matrix.ext }} ./cmd/mirako/
 
       - name: Create archive (Unix)
         if: matrix.goos != 'windows'
