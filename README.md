@@ -20,18 +20,20 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 Download the latest release for your platform from GitHub Releases.
 
 ```bash
-# macOS
-wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-cli-darwin-amd64
-chmod +x mirako-cli-darwin-amd64
-sudo mv mirako-cli-darwin-amd64 /usr/local/bin/mirako
+# macOS (Apple Silicon)
+wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-darwin-arm64.tar.gz
+tar -xzf mirako-darwin-arm64.tar.gz
+chmod +x mirako
+sudo mv mirako /usr/local/bin/mirako
 
 # Linux
-wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-cli-linux-amd64
-chmod +x mirako-cli-linux-amd64
-sudo mv mirako-cli-linux-amd64 /usr/local/bin/mirako
+wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-linux-amd64.tar.gz
+tar -xzf mirako-linux-amd64.tar.gz
+chmod +x mirako
+sudo mv mirako /usr/local/bin/mirako
 
 # Windows
-# Download mirako-cli-windows-amd64.exe from releases and add to PATH
+# Download mirako-windows-amd64.exe from releases and add to PATH
 ```
 
 Afterwards, you can run `mirako` to verify the installation.
