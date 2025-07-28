@@ -68,7 +68,7 @@ sudo mv mirako-cli /usr/local/bin/mirako
 ### 1. Get Your API Token
 
 1. Visit [Mirako Developer Console](https://developer.mirako.ai) and create an account
-2. Navigate to **Settings > API Tokens**
+2. Navigate to [API Keys](https://developer.mirako.ai/api-keys)
 3. Generate a new token and copy it
 
 ### 2. Configure Authentication
@@ -168,7 +168,7 @@ mirako avatar delete [avatar-id]
 
 ```bash
 # Start a new interactive session
-mirako interactive start --avatar [avatar-id]
+mirako interactive start --avatar [avatar-id] --voice [voice-id] --llm-model [model-id] --instruction "You are a helpful assistant"
 
 # List active sessions
 mirako interactive list
@@ -295,11 +295,6 @@ mirako interactive stop [session-id-1] [session-id-2]
 ```
 
 ## Development
-
-### Prerequisites
-
-- Go 1.24.1 or later
-- Git
 
 ### Setup Development Environment
 
