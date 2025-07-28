@@ -1,5 +1,7 @@
 # Mirako CLI
 
+[![Test Status](https://github.com/mirako-ai/mirako-cli/workflows/Test/badge.svg)](https://github.com/mirako-ai/mirako-cli/actions)
+
 The official CLI interface for the [Mirako AI](https://mirako.ai) platform, maintained by the Mirako Team. Create and manage AI avatars, start interactive sessions, generate AI media, and leverage advanced speech services - all from your terminal.
 
 ## Features
