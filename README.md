@@ -20,18 +20,20 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 Download the latest release for your platform from GitHub Releases.
 
 ```bash
-# macOS
-wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-cli-darwin-amd64
-chmod +x mirako-cli-darwin-amd64
-sudo mv mirako-cli-darwin-amd64 /usr/local/bin/mirako
+# macOS (Apple Silicon)
+wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-darwin-arm64.tar.gz
+tar -xzf mirako-darwin-arm64.tar.gz
+chmod +x mirako
+sudo mv mirako /usr/local/bin/mirako
 
 # Linux
-wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-cli-linux-amd64
-chmod +x mirako-cli-linux-amd64
-sudo mv mirako-cli-linux-amd64 /usr/local/bin/mirako
+wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-linux-amd64.tar.gz
+tar -xzf mirako-linux-amd64.tar.gz
+chmod +x mirako
+sudo mv mirako /usr/local/bin/mirako
 
 # Windows
-# Download mirako-cli-windows-amd64.exe from releases and add to PATH
+# Download mirako-windows-amd64.exe from releases and add to PATH
 ```
 
 Afterwards, you can run `mirako` to verify the installation.
@@ -66,7 +68,7 @@ sudo mv mirako-cli /usr/local/bin/mirako
 ### 1. Get Your API Token
 
 1. Visit [Mirako Developer Console](https://developer.mirako.ai) and create an account
-2. Navigate to **Settings > API Tokens**
+2. Navigate to [API Keys](https://developer.mirako.ai/api-keys)
 3. Generate a new token and copy it
 
 ### 2. Configure Authentication
@@ -166,7 +168,7 @@ mirako avatar delete [avatar-id]
 
 ```bash
 # Start a new interactive session
-mirako interactive start --avatar [avatar-id]
+mirako interactive start --avatar [avatar-id] --voice [voice-id] --llm-model [model-id] --instruction "You are a helpful assistant"
 
 # List active sessions
 mirako interactive list
@@ -293,11 +295,6 @@ mirako interactive stop [session-id-1] [session-id-2]
 ```
 
 ## Development
-
-### Prerequisites
-
-- Go 1.24.1 or later
-- Git
 
 ### Setup Development Environment
 
