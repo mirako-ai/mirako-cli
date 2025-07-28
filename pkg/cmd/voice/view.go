@@ -46,11 +46,11 @@ func runView(cmd *cobra.Command, args []string) {
 
 	fmt.Printf("Voice Profile Details:\n")
 	fmt.Printf("  ID: %s\n", profile.Id)
-	fmt.Printf("  Name: %s\n", profile.Name)
-	fmt.Printf("  Description: %s\n", profile.Description)
-	fmt.Printf("  Status: %s\n", profile.Status)
+	fmt.Printf("  Name: %s\n", *profile.Name)
+	fmt.Printf("  Description: %s\n", *profile.Description)
+	fmt.Printf("  Status: %s\n", *profile.Status)
 	fmt.Printf("  Created: %s\n", profile.CreatedAt)
-	fmt.Printf("  Premade: %t\n", profile.IsPremade)
+	fmt.Printf("  Premade: %t\n", *profile.IsPremade)
 	if profile.UserId != nil {
 		fmt.Printf("  User ID: %s\n", *profile.UserId)
 	}

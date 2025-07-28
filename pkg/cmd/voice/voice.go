@@ -54,7 +54,7 @@ func runListProfiles(cmd *cobra.Command, args []string) error {
 	resp, err := client.ListPremadeProfiles(ctx)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to list voice profiles: %w", err)
 	}
@@ -109,7 +109,7 @@ func runListCustomProfiles(cmd *cobra.Command, args []string) error {
 	resp, err := client.ListVoiceProfiles(ctx)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to list voice profiles: %w", err)
 	}
@@ -226,7 +226,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	resp, err := client.CloneVoice(ctx, name, audioDir, annotations)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to start voice cloning: %w", err)
 	}
@@ -263,7 +263,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				fmt.Print(clearLine)
 				if apiErr, ok := errors.IsAPIError(err); ok {
-					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+					return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}

@@ -66,7 +66,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	resp, err := client.ListAvatars(ctx)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to list avatars: %w", err)
 	}
@@ -123,7 +123,7 @@ func runView(cmd *cobra.Command, args []string) error {
 	resp, err := client.GetAvatar(ctx, avatarID)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to get avatar: %w", err)
 	}
@@ -200,7 +200,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	resp, err := client.GenerateAvatar(ctx, prompt, seedPtr)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to generate avatar: %w", err)
 	}
@@ -236,7 +236,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
 				if apiErr, ok := errors.IsAPIError(err); ok {
-					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+					return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}
@@ -343,7 +343,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	resp, err := client.GetAvatarStatus(ctx, taskID)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}
@@ -472,7 +472,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	resp, err := client.BuildAvatar(ctx, name, encodedImage)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to build avatar: %w", err)
 	}
@@ -513,7 +513,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
 				if apiErr, ok := errors.IsAPIError(err); ok {
-					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+					return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 				}
 				return fmt.Errorf("failed to check avatar status: %w", err)
 			}

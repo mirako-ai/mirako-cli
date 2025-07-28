@@ -96,7 +96,7 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 	resp, err := client.GenerateTalkingAvatar(ctx, audioBase64, imageBase64)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to generate talking avatar video: %w", err)
 	}
@@ -132,7 +132,7 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
 				if apiErr, ok := errors.IsAPIError(err); ok {
-					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+					return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}
@@ -250,7 +250,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	resp, err := client.GetTalkingAvatarStatus(ctx, taskID)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}

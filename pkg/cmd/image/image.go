@@ -84,7 +84,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	resp, err := client.GenerateImage(ctx, prompt, aspectRatio, seedPtr)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to generate image: %w", err)
 	}
@@ -120,7 +120,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			if err != nil {
 				fmt.Print(clearLine) // Clear the spinner line
 				if apiErr, ok := errors.IsAPIError(err); ok {
-					return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+					return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 				}
 				return fmt.Errorf("failed to check status: %w", err)
 			}
@@ -229,7 +229,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	resp, err := client.GetImageStatus(ctx, taskID)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to get status: %w", err)
 	}
