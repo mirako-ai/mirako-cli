@@ -4,14 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"github.com/mirako-ai/mirako-cli/pkg/ui"
-
-	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-cli/pkg/ui"
+	"github.com/mirako-ai/mirako-cli/pkg/utils"
+	"github.com/spf13/cobra"
+	"os"
 )
 
 func NewInteractiveCmd() *cobra.Command {
@@ -133,6 +133,11 @@ func runStart(cmd *cobra.Command, args []string) error {
 		voiceID = cfg.DefaultVoice
 	}
 
+	// default instruction: "You are a helpful AI assistant."
+	if instruction == "" {
+		instruction = "You are a helpful AI assistant."
+	}
+
 	client, err := client.New(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
@@ -160,9 +165,19 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	fmt.Printf("✅ Session started successfully!\n")
 	fmt.Printf("   Session ID: %s\n", resp.Data.Session.SessionId)
-	fmt.Printf("   Session Token: %s\n", resp.Data.SessionToken)
 	fmt.Printf("   Model: %s\n", resp.Data.Session.MetisModel)
-
+	fmt.Printf("You can use the following token for interactive api calls:\n   %s", resp.Data.SessionToken)
+	fmt.Println()
+	fmt.Println()
+	// try open the url in default browser
+	url := fmt.Sprintf("https://interactive.mirako.ai/i/%s", resp.Data.Session.SessionId)
+	if err = utils.OpenURLAndForget(url); err != nil {
+		// use test hint instead
+		fmt.Printf("You can now visit the url: %s", url)
+	} else {
+		fmt.Printf("Opened session in browser: %s\n", url)
+	}
+	fmt.Println()
 	return nil
 }
 
