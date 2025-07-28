@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
@@ -55,7 +57,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	resp, err := client.ListSessions(context.Background())
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to list sessions: %w", err)
 	}
@@ -98,17 +100,25 @@ func runList(cmd *cobra.Command, args []string) error {
 
 func newStartCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "start",
+		Use:   "start [profile-name]",
 		Short: "Start a new interactive session",
-		Long:  `Start a new interactive session with an avatar`,
-		RunE:  runStart,
+		Long: `Start a new interactive session with an avatar.
+
+You can start a session in three ways:
+1. Using CLI flags: mirako interactive start --avatar abc123 --voice xyz789
+2. Using Default profile: mirako interactive start
+3. Using named profile: mirako interactive start my-profile
+
+When using a profile, CLI flags will override profile values.`,
+		RunE: runStart,
 	}
 
 	cmd.Flags().StringP("avatar", "a", "", "Avatar ID to use")
-	cmd.Flags().StringP("model", "m", "metis-2.5", "Model to use")
-	cmd.Flags().StringP("llm-model", "l", "gemini-2.0-flash", "LLM model to use")
+	cmd.Flags().StringP("model", "m", "", "Model to use")
+	cmd.Flags().StringP("llm-model", "l", "", "LLM model to use")
 	cmd.Flags().StringP("voice", "v", "", "Voice profile ID")
-	cmd.Flags().StringP("instruction", "i", "You are a helpful AI assistant.", "Instruction prompt")
+	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt")
+	cmd.Flags().StringP("tools", "", "", "Tools to use in the session")
 
 	return cmd
 }
@@ -119,23 +129,93 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
 
-	avatarID, _ := cmd.Flags().GetString("avatar")
-	if avatarID == "" {
-		return fmt.Errorf("avatar ID is required. Use --avatar flag")
+	// Determine which profile to use
+	var profile config.InteractiveProfile
+	var profileName string
+
+	if len(args) > 0 {
+		profileName = args[0]
+		if p, exists := cfg.InteractiveProfiles[profileName]; exists {
+			profile = p
+		} else {
+			return fmt.Errorf("profile '%s' not found in config", profileName)
+		}
+	} else {
+		// Use Default profile (viper converts keys to lowercase)
+		var defaultProfile *config.InteractiveProfile
+		for name, profile := range cfg.InteractiveProfiles {
+			if strings.EqualFold(name, "default") {
+				defaultProfile = &profile
+				break
+			}
+		}
+		
+		if defaultProfile == nil {
+			fmt.Printf("❌ No default profile found in config\n\n")
+			fmt.Printf("To use interactive sessions without specifying a profile, you need to create a 'default' profile in your config.yml:\n\n")
+			fmt.Printf("Location: ~/.mirako/config.yml\n")
+			fmt.Printf("Add the following:\n\n")
+			fmt.Printf("interactive_profiles:\n")
+			fmt.Printf("  default:\n")
+			fmt.Printf("    avatar_id: [YOUR_AVATAR_ID]\n")
+			fmt.Printf("    model: metis-2.5\n")
+			fmt.Printf("    llm_model: gemini-2.0-flash\n")
+			fmt.Printf("    voice_profile_id: [YOUR_VOICE_PROFILE_ID]\n")
+			fmt.Printf("    instruction: You are a helpful AI assistant.\n")
+			fmt.Printf("    tools: \n\n")
+			fmt.Printf("You can also specify a profile name: mirako interactive start [profile-name]\n")
+			fmt.Printf("Or use CLI flags directly: mirako interactive start --avatar YOUR_AVATAR_ID --voice YOUR_VOICE_ID\n")
+			return nil
+		}
+		profile = *defaultProfile
 	}
 
+	// Get CLI flags (these will override profile values)
+	avatarID, _ := cmd.Flags().GetString("avatar")
 	model, _ := cmd.Flags().GetString("model")
 	llmModel, _ := cmd.Flags().GetString("llm-model")
 	voiceID, _ := cmd.Flags().GetString("voice")
 	instruction, _ := cmd.Flags().GetString("instruction")
+	tools, _ := cmd.Flags().GetString("tools")
 
+	// Apply priority: CLI flags > profile values > defaults
+	if avatarID == "" {
+		avatarID = profile.AvatarID
+	}
+	if avatarID == "" {
+		return fmt.Errorf("avatar ID is required. Use --avatar flag or set avatar_id in profile")
+	}
+
+	if model == "" {
+		model = profile.Model
+	}
+	if model == "" {
+		model = "metis-2.5"
+	}
+
+	if llmModel == "" {
+		llmModel = profile.LLMModel
+	}
+	if llmModel == "" {
+		llmModel = "gemini-2.0-flash"
+	}
+
+	if voiceID == "" {
+		voiceID = profile.VoiceProfileID
+	}
 	if voiceID == "" {
 		voiceID = cfg.DefaultVoice
 	}
 
-	// default instruction: "You are a helpful AI assistant."
+	if instruction == "" {
+		instruction = profile.Instruction
+	}
 	if instruction == "" {
 		instruction = "You are a helpful AI assistant."
+	}
+
+	if tools == "" {
+		tools = profile.Tools
 	}
 
 	client, err := client.New(cfg)
@@ -151,10 +231,14 @@ func runStart(cmd *cobra.Command, args []string) error {
 		Instruction:    instruction,
 	}
 
+	if tools != "" {
+		body.Tools = &tools
+	}
+
 	resp, err := client.StartSession(context.Background(), body)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to start session: %w", err)
 	}
@@ -164,8 +248,13 @@ func runStart(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("✅ Session started successfully!\n")
+	if profileName != "" {
+		fmt.Printf("   Profile: %s\n", profileName)
+	}
 	fmt.Printf("   Session ID: %s\n", resp.Data.Session.SessionId)
 	fmt.Printf("   Model: %s\n", resp.Data.Session.MetisModel)
+	fmt.Printf("   LLM Model: %s\n", llmModel)
+	fmt.Printf("   Voice: %s\n", voiceID)
 	fmt.Printf("You can use the following token for interactive api calls:\n   %s", resp.Data.SessionToken)
 	fmt.Println()
 	fmt.Println()
@@ -205,7 +294,7 @@ func runStop(cmd *cobra.Command, args []string) error {
 	resp, err := client.StopSessions(context.Background(), args)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 		}
 		return fmt.Errorf("failed to stop sessions: %w", err)
 	}

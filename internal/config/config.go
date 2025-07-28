@@ -9,12 +9,22 @@ import (
 	"github.com/spf13/viper"
 )
 
+type InteractiveProfile struct {
+	AvatarID       string `mapstructure:"avatar_id" yaml:"avatar_id"`
+	Model          string `mapstructure:"model" yaml:"model"`
+	LLMModel       string `mapstructure:"llm_model" yaml:"llm_model"`
+	VoiceProfileID string `mapstructure:"voice_profile_id" yaml:"voice_profile_id"`
+	Instruction    string `mapstructure:"instruction" yaml:"instruction"`
+	Tools          string `mapstructure:"tools" yaml:"tools"`
+}
+
 type Config struct {
-	APIToken        string `mapstructure:"api_token"`
-	APIURL          string `mapstructure:"api_url"`
-	DefaultModel    string `mapstructure:"default_model"`
-	DefaultVoice    string `mapstructure:"default_voice"`
-	DefaultSavePath string `mapstructure:"default_save_path"`
+	APIToken            string                        `mapstructure:"api_token" yaml:"api_token"`
+	APIURL              string                        `mapstructure:"api_url" yaml:"api_url"`
+	DefaultModel        string                        `mapstructure:"default_model" yaml:"default_model"`
+	DefaultVoice        string                        `mapstructure:"default_voice" yaml:"default_voice"`
+	DefaultSavePath     string                        `mapstructure:"default_save_path" yaml:"default_save_path"`
+	InteractiveProfiles map[string]InteractiveProfile `mapstructure:"interactive_profiles" yaml:"interactive_profiles"`
 }
 
 var (
@@ -34,10 +44,11 @@ func init() {
 
 func Load() (*Config, error) {
 	cfg := &Config{
-		APIURL:          "https://mirako.co",
-		DefaultModel:    "metis-2.5",
-		DefaultVoice:    "mira-korner",
-		DefaultSavePath: ".",
+		APIURL:              "https://mirako.co",
+		DefaultModel:        "metis-2.5",
+		DefaultVoice:        "",
+		DefaultSavePath:     ".",
+		InteractiveProfiles: make(map[string]InteractiveProfile),
 	}
 
 	// Create config directory if it doesn't exist
@@ -55,7 +66,9 @@ func Load() (*Config, error) {
 	// Set defaults
 	viper.SetDefault("api_url", cfg.APIURL)
 	viper.SetDefault("default_model", cfg.DefaultModel)
-	viper.SetDefault("default_voice", cfg.DefaultVoice)
+	if cfg.DefaultVoice != "" {
+		viper.SetDefault("default_voice", cfg.DefaultVoice)
+	}
 
 	// Read config file if it exists
 	if err := viper.ReadInConfig(); err != nil {
@@ -76,8 +89,11 @@ func (c *Config) Save() error {
 	viper.Set("api_token", c.APIToken)
 	viper.Set("api_url", c.APIURL)
 	viper.Set("default_model", c.DefaultModel)
-	viper.Set("default_voice", c.DefaultVoice)
+	if c.DefaultVoice != "" {
+		viper.Set("default_voice", c.DefaultVoice)
+	}
 	viper.Set("default_save_path", c.DefaultSavePath)
+	viper.Set("interactive_profiles", c.InteractiveProfiles)
 
 	if err := viper.WriteConfigAs(ConfigFile); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
@@ -89,4 +105,3 @@ func (c *Config) Save() error {
 func (c *Config) IsAuthenticated() bool {
 	return c.APIToken != ""
 }
-

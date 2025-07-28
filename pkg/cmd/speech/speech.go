@@ -106,7 +106,7 @@ func runSTT(cmd *cobra.Command, args []string) error {
 		case err := <-errorChan:
 			fmt.Print(clearLine)
 			if apiErr, ok := errors.IsAPIError(err); ok {
-				return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+				return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 			}
 			return fmt.Errorf("failed to convert speech to text: %w", err)
 		case resp := <-resultChan:
@@ -244,7 +244,7 @@ func runTTS(cmd *cobra.Command, args []string) error {
 		case err := <-errorChan:
 			fmt.Print(clearLine)
 			if apiErr, ok := errors.IsAPIError(err); ok {
-				return fmt.Errorf(apiErr.GetUserFriendlyMessage())
+				return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 			}
 			return fmt.Errorf("failed to convert text to speech: %w", err)
 		case resp := <-resultChan:

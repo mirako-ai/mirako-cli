@@ -103,17 +103,28 @@ Mirako CLI uses a YAML configuration file located at `~/.mirako/config.yml`. Her
 ```yaml
 # API Configuration
 api_url: https://mirako.co
-api_token: your-api-token-here
+api_token: [my-mirako-api-key]
 
 # Default settings
-default_model: metis-2.5 # the model id for Mirako interactive
-default_voice: <some-voice-id>
-default_save_path: .
+default_model: metis-2.5        # the model id for Mirako interactive
+default_voice: some-voice-id    # default voice profile id used in tts or interactive sessions
+default_save_path: .            # Default path to save generated files
+
+# Interactive session profiles
+interactive_profiles:
+  Default:
+    avatar_id: [my-avatar-id]
+    model: metis-2.5
+    llm_model: gemini-2.0-flash
+    voice_profile_id: [some-voice-id]
+    instruction: "You are a helpful AI assistant."
+    tools: ""
 
 # Advanced settings
 debug: false
 timeout: 30s
 ```
+
 
 ### Configuration Precedence
 
@@ -167,7 +178,16 @@ mirako avatar delete [avatar-id]
 ### Interactive Sessions
 
 ```bash
-# Start a new interactive session
+# Start a new interactive session using Default profile
+mirako interactive start  
+
+# Start a new interactive session using a specific profile
+mirako interactive start [interactive-profile-name]
+
+# Start a new interactive session using a specific profile with overrides
+mirako interactive start [interactive-profile-name] --instruction "You are an engaging AI assistant that doesn't give up easily."
+
+# Start a new interactive session with custom parameters
 mirako interactive start --avatar [avatar-id] --voice [voice-id] --llm-model [model-id] --instruction "You are a helpful assistant"
 
 # List active sessions
@@ -278,14 +298,20 @@ mirako video status [task-id]
 ### Interactive Session Management
 
 ```bash
-# Start session with specific avatar
+# Start session using Default profile from config.yml
+mirako interactive start
+
+# Start session using named profile from config.yml
+mirako interactive start CustomerSupport
+
+# Start session with specific avatar (overrides profile)
 mirako interactive start --avatar [avatar-id]
 
 # Start session with custom LLM model
 mirako interactive start --avatar [avatar-id] --llm-model gemini-2.0-flash
 
-# Start session with custom instruction
-mirako interactive start --avatar [avatar-id] --instruction "You are a helpful coding assistant"
+# Start session using profile with flag overrides
+mirako interactive start CustomerSupport --voice [different-voice-id]
 
 # Monitor active sessions
 mirako interactive list
