@@ -149,11 +149,12 @@ This command creates a new custom voice profile by training on provided audio sa
 The process is asynchronous and may take significant time to complete.
 
 Required files:
-- Audio samples: .wav files in the specified directory
+- Audio samples: At least 6 .wav files in the specified directory
 - Annotations: text file with training annotations
 
 Example usage:
   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt
+  mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --clean-data
 
 The command will:
 1. Scan the audio directory for .wav files
@@ -167,6 +168,7 @@ The command will:
 	cmd.Flags().StringP("audio-dir", "a", "", "Directory containing .wav audio sample files")
 	cmd.Flags().StringP("annotations", "t", "", "Path to annotation file")
 	cmd.Flags().IntP("poll-interval", "p", 10, "Polling interval in seconds for checking status")
+	cmd.Flags().BoolP("clean-data", "c", false, "Enable de-noise processing (default: false)")
 
 	cmd.MarkFlagRequired("name")
 	cmd.MarkFlagRequired("audio-dir")
@@ -187,6 +189,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	audioDir, _ := cmd.Flags().GetString("audio-dir")
 	annotations, _ := cmd.Flags().GetString("annotations")
 	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
+	cleanData, _ := cmd.Flags().GetBool("clean-data")
 
 	// Validate name length
 	if len(name) < 3 || len(name) > 64 {
@@ -207,8 +210,8 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to scan audio files: %w", err)
 	}
 
-	if len(audioFiles) == 0 {
-		return fmt.Errorf("no .wav files found in directory: %s", audioDir)
+	if len(audioFiles) < 6 {
+		return fmt.Errorf("at least 6 .wav files are required for voice cloning. Found: %d", len(audioFiles))
 	}
 
 	client, err := client.New(cfg)
@@ -222,8 +225,9 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Audio directory: %s\n", audioDir)
 	fmt.Printf("   Annotations file: %s\n", annotations)
 	fmt.Printf("   Found %d .wav files\n", len(audioFiles))
+	fmt.Printf("   Clean data: %t\n", cleanData)
 
-	resp, err := client.CloneVoice(ctx, name, audioDir, annotations)
+	resp, err := client.CloneVoice(ctx, name, audioDir, annotations, cleanData)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
 			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
