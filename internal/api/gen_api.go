@@ -602,6 +602,9 @@ type CloneVoiceAsyncMultipartBody struct {
 	AnnotationList openapi_types.File   `json:"annotation_list"`
 	AudioSamples   []openapi_types.File `json:"audio_samples"`
 
+	// CleanData Specify whether de-noise processing should be performed. Default is False.
+	CleanData *bool `json:"clean_data,omitempty"`
+
 	// Name The name of the new voice profile to be created. If not provided, a default name will be generated.
 	Name *string `json:"name,omitempty"`
 

@@ -239,6 +239,19 @@ mirako voice view [profile-id]
 mirako voice delete [profile-id]
 ```
 
+
+### Voice Cloning
+```bash
+
+# Voice cloning (Create a custom voice profile)
+mirako voice clone --name "My Custom Voice" --annotations path/to/annotation_file --audio-dir path/to/sample_files_dir  
+
+```
+
+> [!NOTE]
+> For the best results, ensure your audio samples are high quality and diverse. Using denoising tools on your sample audio files are highly recommended. If you are hesitated on the quality of the voice samples, use the built-in denoiser by passing the `--clean_data` flag.
+
+
 ## Authentication
 
 Mirako CLI uses OAuth 2.0 Bearer token authentication. Your API token is required for all API calls.
