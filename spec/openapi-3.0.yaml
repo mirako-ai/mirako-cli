@@ -421,24 +421,6 @@ components:
         - train_time
         - model_infer_params
       type: object
-    FormFile:
-      additionalProperties: false
-      properties:
-        ContentType:
-          type: string
-        Filename:
-          type: string
-        IsSet:
-          type: boolean
-        Size:
-          format: int64
-          type: integer
-      required:
-        - ContentType
-        - IsSet
-        - Size
-        - Filename
-      type: object
     GenerateAvatarStatusApiResponseBody:
       additionalProperties: false
       properties:
@@ -1619,6 +1601,8 @@ paths:
                 contentType: text/plain
               audio_samples:
                 contentType: audio/wav
+              clean_data:
+                contentType: text/plain
               name:
                 contentType: text/plain
               webhook:
@@ -1637,10 +1621,14 @@ paths:
                   items:
                     contentEncoding: binary
                     contentMediaType: application/octet-stream
-                    description: The audio samples for the voice cloning task
+                    description: The audio samples for the voice cloning task. At least 6 audio files are required.
                     format: binary
                     type: string
                   type: array
+                clean_data:
+                  default: false
+                  description: Specify whether de-noise processing should be performed. Default is False.
+                  type: boolean
                 name:
                   description: The name of the new voice profile to be created. If not provided, a default name will be generated.
                   example: My Custom Voice
