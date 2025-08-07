@@ -377,7 +377,6 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 		if err != nil {
 			return nil, fmt.Errorf("failed to open audio file %s: %w", audioFile, err)
 		}
-		defer file.Close()
 
 		// Create form file with proper content type for audio/wav
 		audioWriter, err := writer.CreatePart(map[string][]string{
@@ -385,13 +384,17 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 			"Content-Type":        {"audio/wav"},
 		})
 		if err != nil {
+			file.Close()
 			return nil, fmt.Errorf("failed to create audio form file: %w", err)
 		}
 
 		// Stream file content instead of loading into memory
 		if _, err := io.Copy(audioWriter, file); err != nil {
+			file.Close()
 			return nil, fmt.Errorf("failed to write audio data: %w", err)
 		}
+		
+		file.Close()
 	}
 
 	writer.Close()
@@ -416,18 +419,20 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	}
 	defer resp.Body.Close()
 
-	// Check if response is successful before attempting to decode
+	// Read response body once for consistent handling
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	// Check if response is successful
 	if resp.StatusCode != http.StatusOK {
-		// Read response body for debugging
-		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	// Parse response
 	var apiResp api.AsyncFinetuningApiResponseBody
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		// Try to read the response body for debugging
-		bodyBytes, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(bodyBytes, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w (response: %s)", err, string(bodyBytes))
 	}
 
