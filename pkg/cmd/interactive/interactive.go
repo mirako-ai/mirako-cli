@@ -10,6 +10,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"github.com/mirako-ai/mirako-cli/pkg/utils"
 	"github.com/spf13/cobra"
@@ -44,9 +45,9 @@ func newListCmd() *cobra.Command {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	client, err := client.New(cfg)
@@ -124,9 +125,9 @@ When using a profile, CLI flags will override profile values.`,
 }
 
 func runStart(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	// Determine which profile to use
@@ -281,9 +282,9 @@ func newStopCmd() *cobra.Command {
 }
 
 func runStop(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	client, err := client.New(cfg)

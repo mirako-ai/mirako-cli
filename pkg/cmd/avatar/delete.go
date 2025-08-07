@@ -7,7 +7,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/client"
-	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 )
 
 var deleteCmd = &cobra.Command{
@@ -39,7 +39,7 @@ func runDelete(cmd *cobra.Command, args []string) {
 		}
 	}
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
 		os.Exit(1)

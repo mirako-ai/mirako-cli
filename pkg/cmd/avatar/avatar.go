@@ -13,8 +13,8 @@ import (
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
-	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/spf13/cobra"
 )
 
@@ -53,7 +53,7 @@ func newListCmd() *cobra.Command {
 func runList(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -109,7 +109,7 @@ func newViewCmd() *cobra.Command {
 func runView(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -170,7 +170,7 @@ func newGenerateCmd() *cobra.Command {
 func runGenerate(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -328,7 +328,7 @@ func newStatusCmd() *cobra.Command {
 func runStatus(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -436,7 +436,7 @@ func newBuildCmd() *cobra.Command {
 func runBuild(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}

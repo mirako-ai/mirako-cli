@@ -76,3 +76,4 @@ func initConfig() {
 		cfg.APIURL = apiURL
 	}
 }
+

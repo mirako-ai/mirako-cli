@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 )
 
 func NewConfigCmd() *cobra.Command {
@@ -33,9 +33,9 @@ func newSetCmd() *cobra.Command {
 }
 
 func runSet(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	key := strings.ToLower(args[0])
@@ -73,9 +73,9 @@ func newGetCmd() *cobra.Command {
 }
 
 func runGet(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	key := strings.ToLower(args[0])
@@ -110,9 +110,9 @@ func newListCmd() *cobra.Command {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	fmt.Println("Configuration:")

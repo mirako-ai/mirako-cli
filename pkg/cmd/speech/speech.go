@@ -10,8 +10,8 @@ import (
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
-	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/spf13/cobra"
 )
 
@@ -47,9 +47,9 @@ func newSTTCmd() *cobra.Command {
 func runSTT(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	audioPath, _ := cmd.Flags().GetString("audio")
@@ -164,9 +164,9 @@ func newTTSCmd() *cobra.Command {
 func runTTS(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	text, _ := cmd.Flags().GetString("text")

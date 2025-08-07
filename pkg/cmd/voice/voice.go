@@ -7,8 +7,8 @@ import (
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
-	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"github.com/spf13/cobra"
 )
@@ -41,7 +41,7 @@ func newListProfilesCmd() *cobra.Command {
 func runListProfiles(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -96,7 +96,7 @@ func newListCmd() *cobra.Command {
 func runListCustomProfiles(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
@@ -180,7 +180,7 @@ The command will:
 func runCloneVoice(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
