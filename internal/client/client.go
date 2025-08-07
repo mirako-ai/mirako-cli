@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/config"
@@ -337,10 +339,12 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	}
 
 	// Add annotation file
-	annotationData, err := os.ReadFile(annotationFile)
+	annotationFileHandle, err := os.Open(annotationFile)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read annotation file: %w", err)
+		return nil, fmt.Errorf("failed to open annotation file: %w", err)
 	}
+	defer annotationFileHandle.Close()
+
 	annotationWriter, err := writer.CreatePart(map[string][]string{
 		"Content-Disposition": {fmt.Sprintf(`form-data; name="annotation_list"; filename="%s"`, filepath.Base(annotationFile))},
 		"Content-Type":        {"text/plain"},
@@ -348,7 +352,9 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	if err != nil {
 		return nil, fmt.Errorf("failed to create annotation form file: %w", err)
 	}
-	if _, err := annotationWriter.Write(annotationData); err != nil {
+	
+	// Stream annotation file content instead of loading into memory
+	if _, err := io.Copy(annotationWriter, annotationFileHandle); err != nil {
 		return nil, fmt.Errorf("failed to write annotation data: %w", err)
 	}
 
@@ -362,10 +368,14 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 		return nil, fmt.Errorf("no .wav files found in directory: %s", audioDir)
 	}
 
+	// Log the number of files being uploaded for debugging
+	fmt.Printf("Uploading %d audio files for voice cloning...\n", len(audioFiles))
+
 	for _, audioFile := range audioFiles {
-		audioData, err := os.ReadFile(audioFile)
+		// Open file for streaming instead of loading into memory
+		file, err := os.Open(audioFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read audio file %s: %w", audioFile, err)
+			return nil, fmt.Errorf("failed to open audio file %s: %w", audioFile, err)
 		}
 
 		// Create form file with proper content type for audio/wav
@@ -374,11 +384,17 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 			"Content-Type":        {"audio/wav"},
 		})
 		if err != nil {
+			file.Close()
 			return nil, fmt.Errorf("failed to create audio form file: %w", err)
 		}
-		if _, err := audioWriter.Write(audioData); err != nil {
+
+		// Stream file content instead of loading into memory
+		if _, err := io.Copy(audioWriter, file); err != nil {
+			file.Close()
 			return nil, fmt.Errorf("failed to write audio data: %w", err)
 		}
+		
+		file.Close()
 	}
 
 	writer.Close()
@@ -394,21 +410,30 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	req.Header.Set("Authorization", "Bearer "+c.config.APIToken)
 
 	// Make HTTP request directly since oapi-codegen doesn't support multipart form data well
-	httpClient := &http.Client{}
+	httpClient := &http.Client{
+		Timeout: 1 * time.Hour, // Extended timeout for large file uploads
+	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// Parse response
-	var apiResp api.AsyncFinetuningApiResponseBody
-	if err := json.NewDecoder(resp.Body).Decode(&apiResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
+	// Read response body once for consistent handling
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
+	// Check if response is successful
 	if resp.StatusCode != http.StatusOK {
-		return nil, handleErrorResponse(resp, "clone voice")
+		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	// Parse response
+	var apiResp api.AsyncFinetuningApiResponseBody
+	if err := json.Unmarshal(bodyBytes, &apiResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w (response: %s)", err, string(bodyBytes))
 	}
 
 	return &apiResp, nil

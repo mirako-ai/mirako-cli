@@ -6,6 +6,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 )
 
 func NewAuthCmd() *cobra.Command {
@@ -36,9 +37,9 @@ func newLoginCmd() *cobra.Command {
 }
 
 func runLogin(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	// Check if token is provided via flag
@@ -74,9 +75,9 @@ func newLogoutCmd() *cobra.Command {
 }
 
 func runLogout(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	cfg.APIToken = ""
@@ -98,9 +99,9 @@ func newStatusCmd() *cobra.Command {
 }
 
 func runStatus(cmd *cobra.Command, args []string) error {
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	if cfg.IsAuthenticated() {

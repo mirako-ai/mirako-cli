@@ -13,8 +13,8 @@ import (
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
-	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/spf13/cobra"
 )
 
@@ -53,9 +53,9 @@ func newGenerateTalkingAvatarCmd() *cobra.Command {
 func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	audioPath, _ := cmd.Flags().GetString("audio")
@@ -235,9 +235,9 @@ func newStatusCmd() *cobra.Command {
 func runStatus(cmd *cobra.Command, args []string) error {
 	ctx := cmd.Context()
 
-	cfg, err := config.Load()
+	cfg, err := util.GetConfig(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
+		return err
 	}
 
 	taskID := args[0]
