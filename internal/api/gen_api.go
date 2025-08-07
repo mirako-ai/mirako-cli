@@ -265,8 +265,8 @@ type FinetuningTaskOutput struct {
 	// Error Error message if any
 	Error *string `json:"error,omitempty"`
 
-	// ModelInferParams The inference parameters for the model
-	ModelInferParams map[string]interface{} `json:"model_infer_params"`
+	// MetaData Additional metadata about the finetuning process
+	MetaData *map[string]interface{} `json:"meta_data,omitempty"`
 
 	// ProfileId The profile ID of the custom voice model
 	ProfileId *string `json:"profile_id,omitempty"`
@@ -276,9 +276,6 @@ type FinetuningTaskOutput struct {
 
 	// TaskId The id of the async task
 	TaskId string `json:"task_id"`
-
-	// TrainTime The time taken to train the model in seconds
-	TrainTime float32 `json:"train_time"`
 }
 
 // FinetuningTaskOutputStatus The status of the async task. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
@@ -318,9 +315,6 @@ type GenerateTalkingAvatarStatusApiResponseBody struct {
 type GenerateTalkingAvatarTaskOutput struct {
 	// FileUrl The URL of the output MP4 video.
 	FileUrl *string `json:"file_url,omitempty"`
-
-	// Id The unique request ID
-	Id string `json:"id"`
 
 	// OutputDuration The duration of the output video in seconds.
 	OutputDuration *float64 `json:"output_duration,omitempty"`

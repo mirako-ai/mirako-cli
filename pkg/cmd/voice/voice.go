@@ -283,7 +283,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 				fmt.Print(clearLine)
 				fmt.Printf("✅ Voice cloning completed!\n")
 				fmt.Printf("   Profile ID: %s\n", *statusResp.Data.ProfileId)
-				fmt.Printf("   Training time: %.2f seconds\n", statusResp.Data.TrainTime)
+				fmt.Printf("   Task completed successfully\n")
 				return nil
 			} else if statusResp.Data.Status == api.FinetuningTaskOutputStatusFAILED ||
 				statusResp.Data.Status == api.FinetuningTaskOutputStatusCANCELED ||
