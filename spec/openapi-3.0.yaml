@@ -90,6 +90,35 @@ components:
           $ref: "#/components/schemas/AsyncTaskStatus"
           description: The task status for the voice cloning task
       type: object
+    AsyncFinetunningWebhookRequestBody:
+      additionalProperties: true
+      properties:
+        delayTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        error:
+          description: The error message if any
+          type: string
+        executionTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        id:
+          description: The id of the request
+          type: string
+        output:
+          $ref: "#/components/schemas/FinetuningOutputInternal"
+          description: The output of the request
+        status:
+          description: The status of the request. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
+          type: string
+      required:
+        - id
+        - delayTime
+        - executionTime
+        - status
+      type: object
     AsyncGenerateAvatarApiRequestBody:
       additionalProperties: false
       properties:
@@ -330,6 +359,15 @@ components:
       required:
         - data
       type: object
+    DummyResponseToTriggerTransformerBody:
+      additionalProperties: false
+      properties:
+        message:
+          description: A dummy response
+          type: string
+      required:
+        - message
+      type: object
     ErrorDetail:
       additionalProperties: false
       properties:
@@ -376,6 +414,29 @@ components:
           format: uri
           type: string
       type: object
+    FinetuningOutputInternal:
+      additionalProperties: false
+      properties:
+        error:
+          type: string
+        id:
+          type: string
+        meta_data:
+          additionalProperties: {}
+          description: Additional metadata about the finetuning process
+          type: object
+        model_infer_params:
+          additionalProperties: {}
+          description: The inference parameters for the model
+          type: object
+        profile_id:
+          type: string
+        train_time:
+          format: float
+          type: number
+      required:
+        - train_time
+      type: object
     FinetuningStatusApiResponseBody:
       additionalProperties: false
       properties:
@@ -389,9 +450,9 @@ components:
         error:
           description: Error message if any
           type: string
-        model_infer_params:
+        meta_data:
           additionalProperties: {}
-          description: The inference parameters for the model
+          description: Additional metadata about the finetuning process
           type: object
         profile_id:
           description: The profile ID of the custom voice model
@@ -411,15 +472,27 @@ components:
           description: The id of the async task
           example: xdac2o3c
           type: string
-        train_time:
-          description: The time taken to train the model in seconds
-          format: float
-          type: number
       required:
         - task_id
         - status
-        - train_time
-        - model_infer_params
+      type: object
+    FormFile:
+      additionalProperties: false
+      properties:
+        ContentType:
+          type: string
+        Filename:
+          type: string
+        IsSet:
+          type: boolean
+        Size:
+          format: int64
+          type: integer
+      required:
+        - ContentType
+        - IsSet
+        - Size
+        - Filename
       type: object
     GenerateAvatarStatusApiResponseBody:
       additionalProperties: false
@@ -460,6 +533,31 @@ components:
           $ref: "#/components/schemas/GenerateTaskOutput"
           description: The image generation task output
       type: object
+    GenerateTalkingAvatarOutputInternal:
+      additionalProperties: false
+      properties:
+        b64_video_str:
+          type: string
+        error:
+          description: Error message if any
+          type: string
+        id:
+          type: string
+        infer_time:
+          format: float
+          type: number
+        output_duration:
+          description: The duration of the output video in seconds.
+          example: 5
+          format: double
+          type: number
+        s3_info:
+          $ref: "#/components/schemas/RemoteFile"
+          description: S3 information for the output video. Only available when the return_type is 'file_url'.
+      required:
+        - id
+        - infer_time
+      type: object
     GenerateTalkingAvatarStatusApiResponseBody:
       additionalProperties: false
       properties:
@@ -473,9 +571,6 @@ components:
         file_url:
           description: The URL of the output MP4 video.
           type: string
-        id:
-          description: The unique request ID
-          type: string
         output_duration:
           description: The duration of the output video in seconds.
           example: 5
@@ -499,41 +594,35 @@ components:
       required:
         - task_id
         - status
-        - id
       type: object
     GenerateTalkingAvatarWebhookRequestBody:
-      additionalProperties: false
+      additionalProperties: true
       properties:
-        file_url:
-          description: The URL of the output MP4 video.
+        delayTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        error:
+          description: The error message if any
           type: string
+        executionTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
         id:
-          description: The unique request ID
+          description: The id of the request
           type: string
-        output_duration:
-          description: The duration of the output video in seconds.
-          example: 5
-          format: double
-          type: number
+        output:
+          $ref: "#/components/schemas/GenerateTalkingAvatarOutputInternal"
+          description: The output of the request
         status:
-          description: The status of the async task. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
-          enum:
-            - IN_QUEUE
-            - IN_PROGRESS
-            - COMPLETED
-            - FAILED
-            - CANCELED
-            - TIMED_OUT
-          example: IN_PROGRESS
-          type: string
-        task_id:
-          description: The id of the async task
-          example: xdac2o3c
+          description: The status of the request. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
           type: string
       required:
-        - task_id
-        - status
         - id
+        - delayTime
+        - executionTime
+        - status
       type: object
     GenerateTaskOutput:
       additionalProperties: false
@@ -804,6 +893,20 @@ components:
           type: string
       required:
         - message
+      type: object
+    RemoteFile:
+      additionalProperties: false
+      properties:
+        bucket:
+          type: string
+        key:
+          type: string
+        region:
+          type: string
+      required:
+        - region
+        - bucket
+        - key
       type: object
     RunpodTime:
       additionalProperties: false
