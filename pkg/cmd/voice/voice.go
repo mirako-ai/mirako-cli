@@ -149,7 +149,7 @@ This command creates a new custom voice profile by training on provided audio sa
 The process is asynchronous and may take significant time to complete.
 
 Required files:
-- Audio samples: At least 6 .wav files in the specified directory
+- Audio samples: At least 6 .wav or .mp3 files in the specified directory
 - Annotations: text file with training annotations
 
 Example usage:
@@ -157,7 +157,7 @@ Example usage:
   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --clean-data
 
 The command will:
-1. Scan the audio directory for .wav files
+1. Scan the audio directory for .wav or .mp3 files
 2. Upload files and start training
 3. Poll status until completion
 4. Display the new voice profile ID`,
@@ -165,7 +165,7 @@ The command will:
 	}
 
 	cmd.Flags().StringP("name", "n", "", "Name for the new voice profile (3-64 characters)")
-	cmd.Flags().StringP("audio-dir", "a", "", "Directory containing .wav audio sample files")
+	cmd.Flags().StringP("audio-dir", "a", "", "Directory containing .wav or .mp3 audio sample files")
 	cmd.Flags().StringP("annotations", "t", "", "Path to annotation file")
 	cmd.Flags().IntP("poll-interval", "p", 10, "Polling interval in seconds for checking status")
 	cmd.Flags().BoolP("clean-data", "c", false, "Enable de-noise processing (default: false)")
@@ -211,7 +211,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(audioFiles) < 6 {
-		return fmt.Errorf("at least 6 .wav files are required for voice cloning. Found: %d", len(audioFiles))
+		return fmt.Errorf("at least 6 audio files (.wav or .mp3) are required for voice cloning. Found: %d", len(audioFiles))
 	}
 
 	client, err := client.New(cfg)
@@ -224,7 +224,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Name: %s\n", name)
 	fmt.Printf("   Audio directory: %s\n", audioDir)
 	fmt.Printf("   Annotations file: %s\n", annotations)
-	fmt.Printf("   Found %d .wav files\n", len(audioFiles))
+	fmt.Printf("   Found %d audio files\n", len(audioFiles))
 	fmt.Printf("   Clean data: %t\n", cleanData)
 
 	resp, err := client.CloneVoice(ctx, name, audioDir, annotations, cleanData)

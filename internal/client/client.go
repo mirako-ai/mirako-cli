@@ -352,7 +352,7 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	if err != nil {
 		return nil, fmt.Errorf("failed to create annotation form file: %w", err)
 	}
-	
+
 	// Stream annotation file content instead of loading into memory
 	if _, err := io.Copy(annotationWriter, annotationFileHandle); err != nil {
 		return nil, fmt.Errorf("failed to write annotation data: %w", err)
@@ -365,7 +365,7 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	}
 
 	if len(audioFiles) == 0 {
-		return nil, fmt.Errorf("no .wav files found in directory: %s", audioDir)
+		return nil, fmt.Errorf("no audio files (.wav or .mp3) found in directory: %s", audioDir)
 	}
 
 	// Log the number of files being uploaded for debugging
@@ -393,7 +393,7 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 			file.Close()
 			return nil, fmt.Errorf("failed to write audio data: %w", err)
 		}
-		
+
 		file.Close()
 	}
 
@@ -450,7 +450,7 @@ func (c *Client) GetVoiceCloneStatus(ctx context.Context, taskID string) (*api.F
 	return nil, handleErrorResponse(resp.HTTPResponse, "get voice clone status")
 }
 
-// ScanAudioFiles scans a directory for .wav files
+// ScanAudioFiles scans a directory for .wav and .mp3 files
 func ScanAudioFiles(dir string) ([]string, error) {
 	var audioFiles []string
 
@@ -459,7 +459,8 @@ func ScanAudioFiles(dir string) ([]string, error) {
 			return err
 		}
 
-		if !info.IsDir() && strings.ToLower(filepath.Ext(path)) == ".wav" {
+		if !info.IsDir() &&
+			(strings.ToLower(filepath.Ext(path)) == ".wav" || strings.ToLower(filepath.Ext(path)) == ".mp3") {
 			audioFiles = append(audioFiles, path)
 		}
 
