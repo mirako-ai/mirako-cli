@@ -230,7 +230,7 @@ mirako video generate-talking --image path/to/avatar.jpg --audio path/to/audio.w
 mirako voice premade
 
 # List custom voice profiles
-mirako voice list-profiles
+mirako voice list
 
 # Get detailed voice profile information
 mirako voice view [profile-id]
