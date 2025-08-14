@@ -204,6 +204,18 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("annotations file does not exist: %s", annotations)
 	}
 
+	c, err := client.New(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+
+	// Validate annotation file and audio files consistency
+	fmt.Printf("🔍 Validating annotation file and audio samples...\n")
+	if err := c.ValidateVoiceCloneInput(audioDir, annotations); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+	fmt.Printf("✅ Validation passed!\n")
+
 	// Scan audio files and show count
 	audioFiles, err := client.ScanAudioFiles(audioDir)
 	if err != nil {
@@ -214,11 +226,6 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("at least 6 audio files (.wav or .mp3) are required for voice cloning. Found: %d", len(audioFiles))
 	}
 
-	client, err := client.New(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
-	}
-
 	// Start voice cloning
 	fmt.Printf("🎤 Starting voice cloning...\n")
 	fmt.Printf("   Name: %s\n", name)
@@ -227,7 +234,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Found %d audio files\n", len(audioFiles))
 	fmt.Printf("   Clean data: %t\n", cleanData)
 
-	resp, err := client.CloneVoice(ctx, name, audioDir, annotations, cleanData)
+	resp, err := c.CloneVoice(ctx, name, audioDir, annotations, cleanData)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
 			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
@@ -263,7 +270,7 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 			fmt.Print(clearLine)
 			return fmt.Errorf("operation cancelled: %w", ctx.Err())
 		case <-pollTicker.C:
-			statusResp, err := client.GetVoiceCloneStatus(ctx, taskID)
+			statusResp, err := c.GetVoiceCloneStatus(ctx, taskID)
 			if err != nil {
 				fmt.Print(clearLine)
 				if apiErr, ok := errors.IsAPIError(err); ok {
