@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
@@ -188,29 +187,6 @@ func (c *Client) GetSessionProfile(ctx context.Context, sessionID string) (*api.
 	return nil, handleErrorResponse(resp.HTTPResponse, "get session profile")
 }
 
-// Voice methods
-func (c *Client) ListPremadeProfiles(ctx context.Context) (*api.GetPremadeProfilesApiResponseBody, error) {
-	resp, err := c.apiClient.GetPremadeVoiceProfilesWithResponse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "list voice profiles")
-}
-
-func (c *Client) ListVoiceProfiles(ctx context.Context) (*api.GetVoiceProfilesApiResponseBody, error) {
-	resp, err := c.apiClient.GetUserVoiceProfilesWithResponse(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "list custom voice profiles")
-}
-
 // Image methods
 func (c *Client) GenerateImage(ctx context.Context, prompt string, aspectRatio api.AsyncGenerateImageApiRequestBodyAspectRatio, seed *int64) (*api.AsyncGenerateImageApiResponseBody, error) {
 	request := api.AsyncGenerateImageApiRequestBody{
@@ -300,6 +276,29 @@ func (c *Client) GetTalkingAvatarStatus(ctx context.Context, taskID string) (*ap
 }
 
 // Voice methods
+
+func (c *Client) ListPremadeProfiles(ctx context.Context) (*api.GetPremadeProfilesApiResponseBody, error) {
+	resp, err := c.apiClient.GetPremadeVoiceProfilesWithResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
+		return resp.JSON200, nil
+	}
+	return nil, handleErrorResponse(resp.HTTPResponse, "list voice profiles")
+}
+
+func (c *Client) ListVoiceProfiles(ctx context.Context) (*api.GetVoiceProfilesApiResponseBody, error) {
+	resp, err := c.apiClient.GetUserVoiceProfilesWithResponse(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
+		return resp.JSON200, nil
+	}
+	return nil, handleErrorResponse(resp.HTTPResponse, "list custom voice profiles")
+}
+
 func (c *Client) GetVoiceProfile(ctx context.Context, profileID string) (*api.GetVoiceProfileApiResponseBody, error) {
 	resp, err := c.apiClient.GetVoiceProfileWithResponse(ctx, profileID)
 	if err != nil {
@@ -448,24 +447,4 @@ func (c *Client) GetVoiceCloneStatus(ctx context.Context, taskID string) (*api.F
 		return resp.JSON200, nil
 	}
 	return nil, handleErrorResponse(resp.HTTPResponse, "get voice clone status")
-}
-
-// ScanAudioFiles scans a directory for .wav and .mp3 files
-func ScanAudioFiles(dir string) ([]string, error) {
-	var audioFiles []string
-
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !info.IsDir() &&
-			(strings.ToLower(filepath.Ext(path)) == ".wav" || strings.ToLower(filepath.Ext(path)) == ".mp3") {
-			audioFiles = append(audioFiles, path)
-		}
-
-		return nil
-	})
-
-	return audioFiles, err
 }
