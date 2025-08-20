@@ -461,7 +461,7 @@ type StartSessionApiRequestBody struct {
 	LlmModel string `json:"llm_model"`
 
 	// Model The interactive model version
-	Model StartSessionApiRequestBodyModel `json:"model"`
+	Model *StartSessionApiRequestBodyModel `json:"model,omitempty"`
 
 	// Tools The tools to be used in the session
 	Tools *string `json:"tools,omitempty"`

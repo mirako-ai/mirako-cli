@@ -224,9 +224,15 @@ func runStart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
+	var modelPtr *api.StartSessionApiRequestBodyModel
+	if model != "" {
+		modelValue := api.StartSessionApiRequestBodyModel(model)
+		modelPtr = &modelValue
+	}
+	
 	body := api.StartSessionApiRequestBody{
 		AvatarId:       avatarID,
-		Model:          api.StartSessionApiRequestBodyModel(model),
+		Model:          modelPtr,
 		LlmModel:       llmModel,
 		VoiceProfileId: voiceID,
 		Instruction:    instruction,
