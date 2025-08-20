@@ -990,7 +990,6 @@ components:
           type: string
       required:
         - avatar_id
-        - model
         - llm_model
         - instruction
         - voice_profile_id
