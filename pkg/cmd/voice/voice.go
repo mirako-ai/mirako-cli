@@ -3,6 +3,7 @@ package voice
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
@@ -12,6 +13,31 @@ import (
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"github.com/spf13/cobra"
 )
+
+// Language code to friendly label mapping
+var languageLabels = map[string]string{
+	"en":  "English",
+	"yue": "Cantonese", 
+	"zh":  "Mandarin",
+}
+
+// formatLanguages converts language codes to friendly labels
+func formatLanguages(languages *[]string) string {
+	if languages == nil || len(*languages) == 0 {
+		return ""
+	}
+	
+	labels := make([]string, len(*languages))
+	for i, lang := range *languages {
+		if label, ok := languageLabels[lang]; ok {
+			labels[i] = label
+		} else {
+			labels[i] = lang // fallback to original code if no mapping found
+		}
+	}
+	
+	return strings.Join(labels, ", ")
+}
 
 func NewVoiceCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -74,10 +100,12 @@ func runListProfiles(cmd *cobra.Command, args []string) error {
 		if profile.Description != nil {
 			description = *profile.Description
 		}
+		languages := formatLanguages(profile.Languages)
 		t.AddRow([]interface{}{
 			profile.Id,
 			name,
 			description,
+			languages,
 		})
 	}
 	t.Flush()
@@ -129,10 +157,12 @@ func runListCustomProfiles(cmd *cobra.Command, args []string) error {
 		if profile.Description != nil {
 			description = *profile.Description
 		}
+		languages := formatLanguages(profile.Languages)
 		t.AddRow([]interface{}{
 			profile.Id,
 			name,
 			description,
+			languages,
 		})
 	}
 	t.Flush()
