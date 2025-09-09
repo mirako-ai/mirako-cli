@@ -162,6 +162,6 @@ func NewSessionTable(output io.Writer) *TableWriter {
 // NewVoiceProfileTable creates a table for displaying voice profile information
 func NewVoiceProfileTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
-	t.SetHeader([]string{"ID", "NAME", "DESCRIPTION"})
+	t.SetHeader([]string{"ID", "NAME", "DESCRIPTION", "LANGUAGES"})
 	return t
 }

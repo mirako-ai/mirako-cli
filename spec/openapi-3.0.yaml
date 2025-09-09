@@ -50,6 +50,21 @@ components:
         - created_at
         - is_delinquent
       type: object
+    ApiUserMetadata:
+      additionalProperties: false
+      properties:
+        is_delinquent:
+          description: Indicates if the API user is delinquent, e.g., negative credits, unpaid bills
+          example: false
+          type: boolean
+        user_id:
+          description: User ID of the API user
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+          type: string
+      required:
+        - user_id
+        - is_delinquent
+      type: object
     AsyncBuildApiRequestBody:
       additionalProperties: false
       properties:
@@ -144,6 +159,35 @@ components:
         data:
           $ref: "#/components/schemas/AsyncTaskStatus"
           description: The task status for the avatar generation task
+      type: object
+    AsyncGenerateAvatarWebhookRequestBody:
+      additionalProperties: true
+      properties:
+        delayTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        error:
+          description: The error message if any
+          type: string
+        executionTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        id:
+          description: The id of the request
+          type: string
+        output:
+          $ref: "#/components/schemas/GenerateAvatarOutput"
+          description: The output of the request
+        status:
+          description: The status of the request. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
+          type: string
+      required:
+        - id
+        - delayTime
+        - executionTime
+        - status
       type: object
     AsyncGenerateImageApiRequestBody:
       additionalProperties: false
@@ -476,23 +520,12 @@ components:
         - task_id
         - status
       type: object
-    FormFile:
+    GenerateAvatarOutput:
       additionalProperties: false
       properties:
-        ContentType:
+        image:
+          description: The generated avatar image, in base64 format
           type: string
-        Filename:
-          type: string
-        IsSet:
-          type: boolean
-        Size:
-          format: int64
-          type: integer
-      required:
-        - ContentType
-        - IsSet
-        - Size
-        - Filename
       type: object
     GenerateAvatarStatusApiResponseBody:
       additionalProperties: false
@@ -649,6 +682,15 @@ components:
         - task_id
         - status
       type: object
+    GetApiUserMetadataResponseBody:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/ApiUserMetadata"
+          description: API user metadata
+      required:
+        - data
+      type: object
     GetAvatarApiResponseBody:
       additionalProperties: false
       properties:
@@ -733,6 +775,10 @@ components:
           description: The interactive model version to be launched.
           example: metis-2.5
           type: string
+        opts:
+          additionalProperties: {}
+          description: Additional options for the instance launch, such as countryCode, gpuTypeIds etc
+          type: object
         session_group:
           description: The session group name for the instance. Default session group will be used if it left unspecfied or empty.
           example: default
@@ -977,7 +1023,8 @@ components:
           example: gemini-2.0-flash
           type: string
         model:
-          description: The interactive model version
+          default: metis-2.5
+          description: The interactive model version. The default model used is 'metis-2.5'
           enum:
             - metis-2.5
           example: metis-2.5
@@ -1181,6 +1228,15 @@ components:
           description: Whether the voice profile is a default premade profile.
           example: true
           type: boolean
+        languages:
+          description: The languages supported by the voice profile.
+          example:
+            - en
+            - yue
+          items:
+            type: string
+          nullable: true
+          type: array
         name:
           description: The name of the voice profile.
           example: Mira Korner

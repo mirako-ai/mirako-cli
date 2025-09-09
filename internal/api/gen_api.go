@@ -460,7 +460,7 @@ type StartSessionApiRequestBody struct {
 	// LlmModel The LLM model to be used for generating avatar's response
 	LlmModel string `json:"llm_model"`
 
-	// Model The interactive model version
+	// Model The interactive model version. The default model used is 'metis-2.5'
 	Model *StartSessionApiRequestBodyModel `json:"model,omitempty"`
 
 	// Tools The tools to be used in the session
@@ -470,7 +470,7 @@ type StartSessionApiRequestBody struct {
 	VoiceProfileId string `json:"voice_profile_id"`
 }
 
-// StartSessionApiRequestBodyModel The interactive model version
+// StartSessionApiRequestBodyModel The interactive model version. The default model used is 'metis-2.5'
 type StartSessionApiRequestBodyModel string
 
 // StartSessionApiResponseBody defines model for StartSessionApiResponseBody.
@@ -567,6 +567,9 @@ type VoiceProfile struct {
 
 	// IsPremade Whether the voice profile is a default premade profile.
 	IsPremade *bool `json:"is_premade,omitempty"`
+
+	// Languages The languages supported by the voice profile.
+	Languages *[]string `json:"languages"`
 
 	// Name The name of the voice profile.
 	Name *string `json:"name,omitempty"`
