@@ -48,7 +48,11 @@ func Load() (*Config, error) {
 		DefaultModel:        "metis-2.5",
 		DefaultVoice:        "",
 		DefaultSavePath:     ".",
-		InteractiveProfiles: make(map[string]InteractiveProfile),
+		InteractiveProfiles: map[string]InteractiveProfile{
+			"default": {
+				Model: "metis-2.5",
+			},
+		},
 	}
 
 	// Create config directory if it doesn't exist
