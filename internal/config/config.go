@@ -10,12 +10,13 @@ import (
 )
 
 type InteractiveProfile struct {
-	AvatarID       string `mapstructure:"avatar_id" yaml:"avatar_id"`
-	Model          string `mapstructure:"model" yaml:"model"`
-	LLMModel       string `mapstructure:"llm_model" yaml:"llm_model"`
-	VoiceProfileID string `mapstructure:"voice_profile_id" yaml:"voice_profile_id"`
-	Instruction    string `mapstructure:"instruction" yaml:"instruction"`
-	Tools          string `mapstructure:"tools" yaml:"tools"`
+	AvatarID       string  `mapstructure:"avatar_id" yaml:"avatar_id"`
+	Model          string  `mapstructure:"model" yaml:"model"`
+	LLMModel       string  `mapstructure:"llm_model" yaml:"llm_model"`
+	VoiceProfileID string  `mapstructure:"voice_profile_id" yaml:"voice_profile_id"`
+	Instruction    string  `mapstructure:"instruction" yaml:"instruction"`
+	Tools          string  `mapstructure:"tools" yaml:"tools"`
+	IdleTimeout    int64   `mapstructure:"idle_timeout" yaml:"idle_timeout"`
 }
 
 type Config struct {
@@ -48,7 +49,12 @@ func Load() (*Config, error) {
 		DefaultModel:        "metis-2.5",
 		DefaultVoice:        "",
 		DefaultSavePath:     ".",
-		InteractiveProfiles: make(map[string]InteractiveProfile),
+		InteractiveProfiles: map[string]InteractiveProfile{
+			"default": {
+				Model:       "metis-2.5",
+				IdleTimeout: 15,
+			},
+		},
 	}
 
 	// Create config directory if it doesn't exist

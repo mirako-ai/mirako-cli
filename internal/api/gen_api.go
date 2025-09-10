@@ -451,7 +451,7 @@ type StartSessionApiRequestBody struct {
 	// AvatarId The avatar id
 	AvatarId string `json:"avatar_id"`
 
-	// IdleTimeout Idle timeout in mins
+	// IdleTimeout Idle timeout in mins. The default value is 15 minutes if not specified. Setting it to -1 will disable the idle timeout, making the session never auto-terminate due to inactivity.
 	IdleTimeout *int64 `json:"idle_timeout,omitempty"`
 
 	// Instruction The instruction prompt for the avatar in the session
