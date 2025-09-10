@@ -120,6 +120,7 @@ When using a profile, CLI flags will override profile values.`,
 	cmd.Flags().StringP("voice", "v", "", "Voice profile ID")
 	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt")
 	cmd.Flags().StringP("tools", "", "", "Tools to use in the session")
+	cmd.Flags().Int64P("idle-timeout", "t", 15, "Idle timeout in minutes (-1 to disable, default: 15)")
 
 	return cmd
 }
@@ -178,6 +179,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	voiceID, _ := cmd.Flags().GetString("voice")
 	instruction, _ := cmd.Flags().GetString("instruction")
 	tools, _ := cmd.Flags().GetString("tools")
+	idleTimeout, _ := cmd.Flags().GetInt64("idle-timeout")
 
 	// Apply priority: CLI flags > profile values > defaults
 	if avatarID == "" {
@@ -219,6 +221,11 @@ func runStart(cmd *cobra.Command, args []string) error {
 		tools = profile.Tools
 	}
 
+	// Handle idle timeout - use profile value if flag is default (15) and profile has a value
+	if idleTimeout == 15 && profile.IdleTimeout != 0 {
+		idleTimeout = profile.IdleTimeout
+	}
+
 	client, err := client.New(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create client: %w", err)
@@ -236,6 +243,11 @@ func runStart(cmd *cobra.Command, args []string) error {
 		LlmModel:       llmModel,
 		VoiceProfileId: voiceID,
 		Instruction:    instruction,
+	}
+
+	// Set idle timeout if not default (15) or if explicitly provided
+	if idleTimeout != 15 || cmd.Flags().Changed("idle-timeout") {
+		body.IdleTimeout = &idleTimeout
 	}
 
 	if tools != "" {

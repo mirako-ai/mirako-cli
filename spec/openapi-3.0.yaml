@@ -1010,13 +1010,16 @@ components:
       properties:
         avatar_id:
           description: The avatar id
+          example: a1b2c3d4-e5f6-7890-1234-567890abcdef
           type: string
         idle_timeout:
-          description: Idle timeout in mins
+          description: Idle timeout in mins. The default value is 15 minutes if not specified. Setting it to -1 will disable the idle timeout, making the session never auto-terminate due to inactivity.
+          example: 15
           format: int64
           type: integer
         instruction:
           description: The instruction prompt for the avatar in the session
+          example: You are a helpful assistant.
           type: string
         llm_model:
           description: The LLM model to be used for generating avatar's response
@@ -1034,6 +1037,7 @@ components:
           type: string
         voice_profile_id:
           description: The voice profile id
+          example: a1b2c3d4-e5f6-7890-1234-567890abcdef
           type: string
       required:
         - avatar_id
