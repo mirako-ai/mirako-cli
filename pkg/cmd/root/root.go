@@ -11,8 +11,8 @@ import (
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/image"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/interactive"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/speech"
-	"github.com/mirako-ai/mirako-cli/pkg/cmd/voice"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/video"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/voice"
 	"github.com/spf13/cobra"
 )
 
@@ -42,7 +42,6 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug mode")
-	rootCmd.PersistentFlags().String("config", "", "config file (default is $HOME/.mirako/config.yml)")
 	rootCmd.PersistentFlags().String("api-token", "", "API token for authentication")
 	rootCmd.PersistentFlags().String("api-url", "", "API URL (default https://mirako.co)")
 
@@ -58,8 +57,7 @@ func init() {
 }
 
 func initConfig() {
-	var err error
-	cfg, err = config.Load()
+	cfg, err := config.Load()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
@@ -76,4 +74,3 @@ func initConfig() {
 		cfg.APIURL = apiURL
 	}
 }
-

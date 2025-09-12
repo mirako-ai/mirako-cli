@@ -151,7 +151,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 				break
 			}
 		}
-		
+
 		if defaultProfile == nil {
 			fmt.Printf("❌ No default profile found in config\n\n")
 			fmt.Printf("To use interactive sessions without specifying a profile, you need to create a 'default' profile in your config.yml:\n\n")
@@ -186,37 +186,35 @@ func runStart(cmd *cobra.Command, args []string) error {
 		avatarID = profile.AvatarID
 	}
 	if avatarID == "" {
-		return fmt.Errorf("avatar ID is required. Use --avatar flag or set avatar_id in profile")
+		return fmt.Errorf("Could not find avatar ID in the profile. Use --avatar flag or set `avatar_id` in profile")
 	}
-
 	if model == "" {
 		model = profile.Model
 	}
 	if model == "" {
-		model = "metis-2.5"
+		model = config.DefaultInteractiveModel
 	}
-
 	if llmModel == "" {
 		llmModel = profile.LLMModel
 	}
 	if llmModel == "" {
-		llmModel = "gemini-2.0-flash"
+		llmModel = config.DefaultLLMModel
 	}
-
 	if voiceID == "" {
 		voiceID = profile.VoiceProfileID
 	}
 	if voiceID == "" {
 		voiceID = cfg.DefaultVoice
 	}
-
+	if voiceID == "" {
+		return fmt.Errorf("Could not find voice profile ID in the profile. Use --voice flag, set `voice_profile_id` in profile, or set `default_voice` in config")
+	}
 	if instruction == "" {
 		instruction = profile.Instruction
 	}
 	if instruction == "" {
 		instruction = "You are a helpful AI assistant."
 	}
-
 	if tools == "" {
 		tools = profile.Tools
 	}
@@ -236,7 +234,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		modelValue := api.StartSessionApiRequestBodyModel(model)
 		modelPtr = &modelValue
 	}
-	
+
 	body := api.StartSessionApiRequestBody{
 		AvatarId:       avatarID,
 		Model:          modelPtr,

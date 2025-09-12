@@ -114,7 +114,7 @@ default_save_path: .            # Default path to save generated files
 
 # Interactive session profiles
 interactive_profiles:
-  Default:
+  default:
     avatar_id: [my-avatar-id]
     model: metis-2.5
     llm_model: gemini-2.0-flash
