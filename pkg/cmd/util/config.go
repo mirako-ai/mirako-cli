@@ -25,3 +25,4 @@ func GetConfig(cmd *cobra.Command) (*config.Config, error) {
 
 	return cfg, nil
 }
+

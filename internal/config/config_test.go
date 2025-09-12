@@ -16,17 +16,9 @@ func TestLoadConfig(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	// Save original config paths
-	originalConfigDir := ConfigDir
-	originalConfigFile := ConfigFile
-	defer func() {
-		ConfigDir = originalConfigDir
-		ConfigFile = originalConfigFile
-	}()
-
 	// Set test config paths
-	ConfigDir = tempDir
-	ConfigFile = filepath.Join(tempDir, "config.yml")
+	os.Setenv("MIRAKO_CONFIG_PATH", tempDir)
+	tempConfigFile := filepath.Join(tempDir, "config.yml")
 
 	tests := []struct {
 		name           string
@@ -38,11 +30,15 @@ func TestLoadConfig(t *testing.T) {
 			name:          "empty config file",
 			configContent: ``,
 			expectedConfig: &Config{
-				APIURL:              "https://mirako.co",
-				DefaultModel:        "metis-2.5",
-				DefaultVoice:        "",
-				DefaultSavePath:     ".",
-				InteractiveProfiles: map[string]InteractiveProfile{},
+				APIURL:          "https://mirako.co",
+				DefaultVoice:    "",
+				DefaultSavePath: ".",
+				InteractiveProfiles: map[string]InteractiveProfile{
+					"default": {
+						Model:       "metis-2.5",
+						IdleTimeout: 15,
+					},
+				},
 			},
 			expectError: false,
 		},
@@ -50,11 +46,10 @@ func TestLoadConfig(t *testing.T) {
 			name: "full config with Default profile",
 			configContent: `api_token: test-token
 api_url: https://test.mirako.co
-default_model: test-model
 default_voice: test-voice
 default_save_path: /test/path
 interactive_profiles:
-  Default:
+  default:
     avatar_id: test-avatar-id
     model: test-model
     llm_model: test-llm-model
@@ -65,7 +60,6 @@ interactive_profiles:
 			expectedConfig: &Config{
 				APIToken:        "test-token",
 				APIURL:          "https://test.mirako.co",
-				DefaultModel:    "test-model",
 				DefaultVoice:    "test-voice",
 				DefaultSavePath: "/test/path",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -85,7 +79,7 @@ interactive_profiles:
 			name: "config with multiple profiles",
 			configContent: `api_token: test-token
 interactive_profiles:
-  Default:
+  default:
     avatar_id: default-avatar
     model: default-model
     instruction: default instruction
@@ -97,7 +91,6 @@ interactive_profiles:
 			expectedConfig: &Config{
 				APIToken:        "test-token",
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -118,14 +111,13 @@ interactive_profiles:
 		{
 			name: "config with partial profiles",
 			configContent: `interactive_profiles:
-  Default:
+  default:
     avatar_id: test-avatar
   MinimalProfile:
     model: minimal-model
 `,
 			expectedConfig: &Config{
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -147,7 +139,6 @@ interactive_profiles: {}
 			expectedConfig: &Config{
 				APIToken:            "test-token",
 				APIURL:              "https://mirako.co",
-				DefaultModel:        "metis-2.5",
 				DefaultVoice:        "",
 				DefaultSavePath:     ".",
 				InteractiveProfiles: map[string]InteractiveProfile{},
@@ -163,7 +154,6 @@ interactive_profiles: {}
 `,
 			expectedConfig: &Config{
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -181,13 +171,14 @@ interactive_profiles: {}
 		t.Run(tt.name, func(t *testing.T) {
 			// Reset viper for clean state
 			viper.Reset()
-			
+
 			// Create test config file
 			if tt.configContent != "" {
-				err := os.WriteFile(ConfigFile, []byte(tt.configContent), 0644)
+				err := os.WriteFile(tempConfigFile, []byte(tt.configContent), 0644)
 				require.NoError(t, err)
 			}
 
+			// Load config, respecting the MIRAKO_CONFIG_PATH env var
 			cfg, err := Load()
 			if tt.expectError {
 				assert.Error(t, err)
@@ -196,12 +187,12 @@ interactive_profiles: {}
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedConfig.APIURL, cfg.APIURL)
-			assert.Equal(t, tt.expectedConfig.DefaultModel, cfg.DefaultModel)
 			assert.Equal(t, tt.expectedConfig.DefaultVoice, cfg.DefaultVoice)
 			assert.Equal(t, tt.expectedConfig.DefaultSavePath, cfg.DefaultSavePath)
 			assert.Equal(t, tt.expectedConfig.APIToken, cfg.APIToken)
+			t.Log(cfg.InteractiveProfiles)
 			assert.Equal(t, len(tt.expectedConfig.InteractiveProfiles), len(cfg.InteractiveProfiles))
-			
+
 			// Compare interactive profiles
 			for expectedName, expectedProfile := range tt.expectedConfig.InteractiveProfiles {
 				actualProfile, exists := cfg.InteractiveProfiles[expectedName]
@@ -212,59 +203,21 @@ interactive_profiles: {}
 	}
 }
 
-func TestLoadConfig_FileNotFound(t *testing.T) {
-	// Create temporary directory for test
-	tempDir, err := os.MkdirTemp("", "mirako-config-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
-
-	// Save original config paths
-	originalConfigDir := ConfigDir
-	originalConfigFile := ConfigFile
-	defer func() {
-		ConfigDir = originalConfigDir
-		ConfigFile = originalConfigFile
-	}()
-
-	// Set test config paths to non-existent directory
-	ConfigDir = filepath.Join(tempDir, "nonexistent")
-	ConfigFile = filepath.Join(ConfigDir, "config.yml")
-
-	// Reset viper for clean state
-	viper.Reset()
-
-	cfg, err := Load()
-	assert.NoError(t, err)
-	assert.NotNil(t, cfg)
-	assert.Equal(t, "https://mirako.co", cfg.APIURL)
-	assert.Equal(t, "metis-2.5", cfg.DefaultModel)
-	assert.Equal(t, "", cfg.DefaultVoice)
-	assert.Equal(t, ".", cfg.DefaultSavePath)
-	assert.Equal(t, map[string]InteractiveProfile{}, cfg.InteractiveProfiles)
-}
-
 func TestSaveConfig(t *testing.T) {
 	// Create temporary directory for test
 	tempDir, err := os.MkdirTemp("", "mirako-config-test")
 	require.NoError(t, err)
 	defer os.RemoveAll(tempDir)
 
-	// Save original config paths
-	originalConfigDir := ConfigDir
-	originalConfigFile := ConfigFile
-	defer func() {
-		ConfigDir = originalConfigDir
-		ConfigFile = originalConfigFile
-	}()
-
 	// Set test config paths
-	ConfigDir = tempDir
-	ConfigFile = filepath.Join(tempDir, "config.yml")
+	os.Setenv("MIRAKO_CONFIG_PATH", tempDir)
+	originalConfigPath := ConfigPath
+	ConfigPath = tempDir
+	defer func() { ConfigPath = originalConfigPath }()
 
 	cfg := &Config{
 		APIToken:        "test-token",
 		APIURL:          "https://test.mirako.co",
-		DefaultModel:    "test-model",
 		DefaultVoice:    "test-voice",
 		DefaultSavePath: "/test/path",
 		InteractiveProfiles: map[string]InteractiveProfile{
@@ -289,14 +242,13 @@ func TestSaveConfig(t *testing.T) {
 	// Reset viper state and load the saved config
 	viper.Reset()
 	loadedCfg, err := Load()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	assert.Equal(t, cfg.APIToken, loadedCfg.APIToken)
 	assert.Equal(t, cfg.APIURL, loadedCfg.APIURL)
-	assert.Equal(t, cfg.DefaultModel, loadedCfg.DefaultModel)
 	assert.Equal(t, cfg.DefaultVoice, loadedCfg.DefaultVoice)
 	assert.Equal(t, cfg.DefaultSavePath, loadedCfg.DefaultSavePath)
-	
+
 	// Compare interactive profiles individually since maps can't be directly compared
 	assert.Equal(t, len(cfg.InteractiveProfiles), len(loadedCfg.InteractiveProfiles))
 	for name, expectedProfile := range cfg.InteractiveProfiles {

@@ -22,64 +22,75 @@ type InteractiveProfile struct {
 type Config struct {
 	APIToken            string                        `mapstructure:"api_token" yaml:"api_token"`
 	APIURL              string                        `mapstructure:"api_url" yaml:"api_url"`
-	DefaultModel        string                        `mapstructure:"default_model" yaml:"default_model"`
 	DefaultVoice        string                        `mapstructure:"default_voice" yaml:"default_voice"`
 	DefaultSavePath     string                        `mapstructure:"default_save_path" yaml:"default_save_path"`
 	InteractiveProfiles map[string]InteractiveProfile `mapstructure:"interactive_profiles" yaml:"interactive_profiles"`
 }
 
 var (
-	ConfigDir  string
-	ConfigFile string
+	ConfigPath              string // Path of config path used in this session. Contains value overriden by env var
+	DefaultConfigFileName   string = "config.yml"
+	DefaultLLMModel         string = "gemini-2.0-flash"
+	DefaultInteractiveModel string = "metis-2.5"
 )
 
-func init() {
+func DefaultUserConfigDirPath() string {
 	home, err := homedir.Dir()
 	if err != nil {
 		panic(err)
 	}
-
-	ConfigDir = filepath.Join(home, ".mirako")
-	ConfigFile = filepath.Join(ConfigDir, "config.yml")
+	return filepath.Join(home, ".mirako")
 }
 
 func Load() (*Config, error) {
-	cfg := &Config{
-		APIURL:          "https://mirako.co",
-		DefaultModel:    "metis-2.5",
-		DefaultVoice:    "",
-		DefaultSavePath: ".",
-		InteractiveProfiles: map[string]InteractiveProfile{
-			"default": {
-				Model:       "metis-2.5",
-				IdleTimeout: 15,
-			},
-		},
-	}
 
-	// Create config directory if it doesn't exist
-	if err := os.MkdirAll(ConfigDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create config directory: %w", err)
+	cfg := &Config{
+		APIURL:              "https://mirako.co",
+		DefaultVoice:        "",
+		DefaultSavePath:     ".",
+		InteractiveProfiles: map[string]InteractiveProfile{},
 	}
 
 	// Configure viper
 	viper.SetConfigName("config")
 	viper.SetConfigType("yml")
-	viper.AddConfigPath(ConfigDir)
+	if envConfigPath := os.Getenv("MIRAKO_CONFIG_PATH"); envConfigPath != "" {
+		ConfigPath = envConfigPath
+	} else {
+		ConfigPath = DefaultUserConfigDirPath()
+	}
+	viper.AddConfigPath(ConfigPath)
+
+	// ENV started with MIRAKO_ will be automatically mapped to config keys
 	viper.SetEnvPrefix("MIRAKO")
 	viper.AutomaticEnv()
 
 	// Set defaults
 	viper.SetDefault("api_url", cfg.APIURL)
-	viper.SetDefault("default_model", cfg.DefaultModel)
 	if cfg.DefaultVoice != "" {
 		viper.SetDefault("default_voice", cfg.DefaultVoice)
 	}
 
-	// Read config file if it exists
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); !ok {
-			return nil, fmt.Errorf("failed to read config file: %w", err)
+	// Check if config file exists before trying to read it
+	if _, err := os.Stat(filepath.Join(ConfigPath, DefaultConfigFileName)); os.IsNotExist(err) {
+		// First run
+
+		// add default interactive profile upon first config file write
+		cfg.InteractiveProfiles["default"] = InteractiveProfile{
+			Model:       "metis-2.5",
+			IdleTimeout: 15,
+		}
+
+		if err := os.MkdirAll(filepath.Dir(ConfigPath), 0755); err != nil {
+			return nil, fmt.Errorf("failed to create config directory: %w", err)
+		}
+		// write default config file to ConfigPath
+		if err = cfg.Save(); err != nil {
+			return nil, fmt.Errorf("failed to create default config file: %w", err)
+		}
+	} else {
+		if err := viper.ReadInConfig(); err != nil {
+			return nil, fmt.Errorf("failed to read config file at %s: %w", ConfigPath, err)
 		}
 	}
 
@@ -94,14 +105,13 @@ func Load() (*Config, error) {
 func (c *Config) Save() error {
 	viper.Set("api_token", c.APIToken)
 	viper.Set("api_url", c.APIURL)
-	viper.Set("default_model", c.DefaultModel)
 	if c.DefaultVoice != "" {
 		viper.Set("default_voice", c.DefaultVoice)
 	}
 	viper.Set("default_save_path", c.DefaultSavePath)
 	viper.Set("interactive_profiles", c.InteractiveProfiles)
 
-	if err := viper.WriteConfigAs(ConfigFile); err != nil {
+	if err := viper.WriteConfigAs(filepath.Join(ConfigPath, DefaultConfigFileName)); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 

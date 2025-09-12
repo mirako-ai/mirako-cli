@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
+	"github.com/spf13/cobra"
 )
 
 func NewConfigCmd() *cobra.Command {
@@ -46,8 +46,6 @@ func runSet(cmd *cobra.Command, args []string) error {
 		cfg.APIToken = value
 	case "api-url":
 		cfg.APIURL = value
-	case "default-model":
-		cfg.DefaultModel = value
 	case "default-voice":
 		cfg.DefaultVoice = value
 	default:
@@ -89,8 +87,6 @@ func runGet(cmd *cobra.Command, args []string) error {
 		}
 	case "api-url":
 		fmt.Println(cfg.APIURL)
-	case "default-model":
-		fmt.Println(cfg.DefaultModel)
 	case "default-voice":
 		fmt.Println(cfg.DefaultVoice)
 	default:
@@ -118,7 +114,6 @@ func runList(cmd *cobra.Command, args []string) error {
 	fmt.Println("Configuration:")
 	fmt.Printf("  api-url: %s\n", cfg.APIURL)
 	fmt.Printf("  api-token: %s\n", formatToken(cfg.APIToken))
-	fmt.Printf("  default-model: %s\n", cfg.DefaultModel)
 	fmt.Printf("  default-voice: %s\n", cfg.DefaultVoice)
 
 	return nil
@@ -130,3 +125,4 @@ func formatToken(token string) string {
 	}
 	return "***"
 }
+

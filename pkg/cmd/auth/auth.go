@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
+	"github.com/spf13/cobra"
 )
 
 func NewAuthCmd() *cobra.Command {
@@ -107,7 +107,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	if cfg.IsAuthenticated() {
 		fmt.Println("✅ Authenticated")
 		fmt.Printf("   API URL: %s\n", cfg.APIURL)
-		fmt.Printf("   Config: %s\n", config.ConfigFile)
+		fmt.Printf("   Config Path: %s\n", config.ConfigPath)
 	} else {
 		fmt.Println("❌ Not authenticated")
 		fmt.Println("   Run 'mirako auth login' to authenticate")
@@ -115,3 +115,4 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
+
