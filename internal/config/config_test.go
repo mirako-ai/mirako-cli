@@ -31,7 +31,6 @@ func TestLoadConfig(t *testing.T) {
 			configContent: ``,
 			expectedConfig: &Config{
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -47,11 +46,10 @@ func TestLoadConfig(t *testing.T) {
 			name: "full config with Default profile",
 			configContent: `api_token: test-token
 api_url: https://test.mirako.co
-default_model: test-model
 default_voice: test-voice
 default_save_path: /test/path
 interactive_profiles:
-  Default:
+  default:
     avatar_id: test-avatar-id
     model: test-model
     llm_model: test-llm-model
@@ -62,7 +60,6 @@ interactive_profiles:
 			expectedConfig: &Config{
 				APIToken:        "test-token",
 				APIURL:          "https://test.mirako.co",
-				DefaultModel:    "test-model",
 				DefaultVoice:    "test-voice",
 				DefaultSavePath: "/test/path",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -82,7 +79,7 @@ interactive_profiles:
 			name: "config with multiple profiles",
 			configContent: `api_token: test-token
 interactive_profiles:
-  Default:
+  default:
     avatar_id: default-avatar
     model: default-model
     instruction: default instruction
@@ -94,7 +91,6 @@ interactive_profiles:
 			expectedConfig: &Config{
 				APIToken:        "test-token",
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -115,14 +111,13 @@ interactive_profiles:
 		{
 			name: "config with partial profiles",
 			configContent: `interactive_profiles:
-  Default:
+  default:
     avatar_id: test-avatar
   MinimalProfile:
     model: minimal-model
 `,
 			expectedConfig: &Config{
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -144,7 +139,6 @@ interactive_profiles: {}
 			expectedConfig: &Config{
 				APIToken:            "test-token",
 				APIURL:              "https://mirako.co",
-				DefaultModel:        "metis-2.5",
 				DefaultVoice:        "",
 				DefaultSavePath:     ".",
 				InteractiveProfiles: map[string]InteractiveProfile{},
@@ -160,7 +154,6 @@ interactive_profiles: {}
 `,
 			expectedConfig: &Config{
 				APIURL:          "https://mirako.co",
-				DefaultModel:    "metis-2.5",
 				DefaultVoice:    "",
 				DefaultSavePath: ".",
 				InteractiveProfiles: map[string]InteractiveProfile{
@@ -194,7 +187,6 @@ interactive_profiles: {}
 
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedConfig.APIURL, cfg.APIURL)
-			assert.Equal(t, tt.expectedConfig.DefaultModel, cfg.DefaultModel)
 			assert.Equal(t, tt.expectedConfig.DefaultVoice, cfg.DefaultVoice)
 			assert.Equal(t, tt.expectedConfig.DefaultSavePath, cfg.DefaultSavePath)
 			assert.Equal(t, tt.expectedConfig.APIToken, cfg.APIToken)
@@ -226,7 +218,6 @@ func TestSaveConfig(t *testing.T) {
 	cfg := &Config{
 		APIToken:        "test-token",
 		APIURL:          "https://test.mirako.co",
-		DefaultModel:    "test-model",
 		DefaultVoice:    "test-voice",
 		DefaultSavePath: "/test/path",
 		InteractiveProfiles: map[string]InteractiveProfile{
@@ -255,7 +246,6 @@ func TestSaveConfig(t *testing.T) {
 
 	assert.Equal(t, cfg.APIToken, loadedCfg.APIToken)
 	assert.Equal(t, cfg.APIURL, loadedCfg.APIURL)
-	assert.Equal(t, cfg.DefaultModel, loadedCfg.DefaultModel)
 	assert.Equal(t, cfg.DefaultVoice, loadedCfg.DefaultVoice)
 	assert.Equal(t, cfg.DefaultSavePath, loadedCfg.DefaultSavePath)
 

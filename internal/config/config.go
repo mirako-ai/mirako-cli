@@ -22,7 +22,6 @@ type InteractiveProfile struct {
 type Config struct {
 	APIToken            string                        `mapstructure:"api_token" yaml:"api_token"`
 	APIURL              string                        `mapstructure:"api_url" yaml:"api_url"`
-	DefaultModel        string                        `mapstructure:"default_model" yaml:"default_model"`
 	DefaultVoice        string                        `mapstructure:"default_voice" yaml:"default_voice"`
 	DefaultSavePath     string                        `mapstructure:"default_save_path" yaml:"default_save_path"`
 	InteractiveProfiles map[string]InteractiveProfile `mapstructure:"interactive_profiles" yaml:"interactive_profiles"`
@@ -45,21 +44,8 @@ func DefaultUserConfigDirPath() string {
 
 func Load() (*Config, error) {
 
-	// cfg := &Config{
-	// 	APIURL:          "https://mirako.co",
-	// 	DefaultModel:    "metis-2.5",
-	// 	DefaultVoice:    "",
-	// 	DefaultSavePath: ".",
-	// 	InteractiveProfiles: map[string]InteractiveProfile{
-	// 		"default": {
-	// 			Model:       "metis-2.5",
-	// 			IdleTimeout: 15,
-	// 		},
-	// 	},
-	// }
 	cfg := &Config{
 		APIURL:              "https://mirako.co",
-		DefaultModel:        "metis-2.5",
 		DefaultVoice:        "",
 		DefaultSavePath:     ".",
 		InteractiveProfiles: map[string]InteractiveProfile{},
@@ -81,7 +67,6 @@ func Load() (*Config, error) {
 
 	// Set defaults
 	viper.SetDefault("api_url", cfg.APIURL)
-	viper.SetDefault("default_model", cfg.DefaultModel)
 	if cfg.DefaultVoice != "" {
 		viper.SetDefault("default_voice", cfg.DefaultVoice)
 	}
@@ -120,7 +105,6 @@ func Load() (*Config, error) {
 func (c *Config) Save() error {
 	viper.Set("api_token", c.APIToken)
 	viper.Set("api_url", c.APIURL)
-	viper.Set("default_model", c.DefaultModel)
 	if c.DefaultVoice != "" {
 		viper.Set("default_voice", c.DefaultVoice)
 	}
