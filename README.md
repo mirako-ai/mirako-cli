@@ -73,19 +73,12 @@ sudo mv mirako-cli /usr/local/bin/mirako
 2. Navigate to [API Keys](https://developer.mirako.ai/api-keys)
 3. Generate a new token and copy it
 
-### 2. Configure Authentication
+### 2. Setup Authentication for the CLI
 
 ```bash
-# Option 1: Interactive setup
 mirako auth login
-
-# Option 2: Set via environment variable
-export MIRAKO_API_TOKEN="your-api-token-here"
-
-# Option 3: Create config file
-mkdir -p ~/.mirako
-echo "api_token: your-api-token-here" > ~/.mirako/config.yml
 ```
+
 
 ### 3. Test Your Setup
 
@@ -258,16 +251,17 @@ Mirako CLI uses OAuth 2.0 Bearer token authentication. Your API token is require
 ### Setting Your Token
 
 ```bash
-# Method 1: Interactive login
 mirako auth login
+```
 
-# Method 2: Environment variable
+By following the prompts to enter your API token, it will be saved to your config file. 
+
+You can also set your token using environment variables or CLI flags:
+```bash
+# Setting api token in environment variable
 export MIRAKO_API_TOKEN="your-token-here"
 
-# Method 3: Config file
-echo "api_token: your-token-here" > ~/.mirako/config.yml
-
-# Method 4: CLI flag
+# or you can use CLI flag
 mirako avatar list --api-token your-token-here
 ```
 
