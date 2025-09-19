@@ -19,9 +19,9 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -X github.com/mirako-ai/mirako-cli/pkg/cmd/root.Version={{.Version}}
+      - -X github.com/mirako-ai/mirako-cli/pkg/cmd/root.Commit={{.Commit}}
+      - -X github.com/mirako-ai/mirako-cli/pkg/cmd/root.Date={{.Date}}
 
 # Archive customization
 archives:
