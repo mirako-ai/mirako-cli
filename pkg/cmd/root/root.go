@@ -57,6 +57,9 @@ func init() {
 	rootCmd.PersistentFlags().String("api-token", "", "API token for authentication")
 	rootCmd.PersistentFlags().String("api-url", "", "API URL (default https://mirako.co)")
 
+	// Set custom version template to show only the version string
+	rootCmd.SetVersionTemplate("{{.Version}}\n")
+
 	// Add subcommands
 	rootCmd.AddCommand(auth.NewAuthCmd())
 	rootCmd.AddCommand(avatar.NewAvatarCmd())
