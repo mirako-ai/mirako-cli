@@ -20,11 +20,8 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 ### Homebrew (macOS & Linux)
 
 ```bash
-# Add the Mirako tap
-brew tap mirako-ai/tap
-
 # Install Mirako CLI
-brew install mirako
+brew install mirako-ai/tap/mirako
 ```
 
 After installation, verify with `mirako --version`.
