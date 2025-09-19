@@ -69,6 +69,25 @@ github_urls:
 metadata:
   mod_timestamp: '{{ .CommitTimestamp }}'
 
+# Homebrew tap configuration
+brews:
+  - name: mirako
+    repository:
+      owner: mirako-ai
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://mirako.ai"
+    description: "Official CLI for Mirako AI platform - Create and manage AI avatars, interactive sessions, and AI media generation"
+    license: "MIT"
+    dependencies:
+      - name: git
+        type: optional
+    install: |
+      bin.install "mirako"
+    test: |
+      system "#{bin}/mirako --version"
+
 # Environment
 env:
   - CGO_ENABLED=0
