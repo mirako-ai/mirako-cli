@@ -352,7 +352,7 @@ type GetAvatarApiResponseBody struct {
 // GetPremadeProfilesApiResponseBody defines model for GetPremadeProfilesApiResponseBody.
 type GetPremadeProfilesApiResponseBody struct {
 	// Data List of premade voice profiles
-	Data *[]VoiceProfile `json:"data"`
+	Data *[]PresignedVoiceProfile `json:"data"`
 }
 
 // GetSessionProfileApiResponseBody defines model for GetSessionProfileApiResponseBody.
@@ -368,13 +368,13 @@ type GetUserAvatarListApiResponseBody struct {
 
 // GetVoiceProfileApiResponseBody defines model for GetVoiceProfileApiResponseBody.
 type GetVoiceProfileApiResponseBody struct {
-	Data VoiceProfile `json:"data"`
+	Data PresignedVoiceProfile `json:"data"`
 }
 
 // GetVoiceProfilesApiResponseBody defines model for GetVoiceProfilesApiResponseBody.
 type GetVoiceProfilesApiResponseBody struct {
 	// Data List of user custom voice profiles
-	Data *[]VoiceProfile `json:"data"`
+	Data *[]PresignedVoiceProfile `json:"data"`
 }
 
 // ListSessionsApiResponseBody defines model for ListSessionsApiResponseBody.
@@ -385,12 +385,34 @@ type ListSessionsApiResponseBody struct {
 
 // MetisSession defines model for MetisSession.
 type MetisSession struct {
-	DesiredState *string   `json:"desired_state"`
-	MetisModel   string    `json:"metis_model"`
-	SessionId    string    `json:"session_id"`
-	StartTime    time.Time `json:"start_time"`
-	State        *string   `json:"state"`
-	UserId       string    `json:"user_id"`
+	Avatar MetisSessionAvatar `json:"avatar"`
+
+	// IdleTimeout Idle timeout duration in minutes
+	IdleTimeout *int64 `json:"idle_timeout,omitempty"`
+
+	// MetisModel The Metis model used in the session
+	MetisModel *string `json:"metis_model,omitempty"`
+
+	// SessionId Unique identifier for the session
+	SessionId *string `json:"session_id,omitempty"`
+
+	// StartTime Timestamp when the session started in RFC3339 format
+	StartTime time.Time `json:"start_time"`
+
+	// State Current state of the session
+	State *string `json:"state,omitempty"`
+
+	// UserId User ID of the session owner
+	UserId *string `json:"user_id,omitempty"`
+}
+
+// MetisSessionAvatar defines model for MetisSessionAvatar.
+type MetisSessionAvatar struct {
+	// Id Unique identifier for the avatar
+	Id *string `json:"id,omitempty"`
+
+	// Name Name of the avatar
+	Name *string `json:"name,omitempty"`
 }
 
 // MetisSessionProfile defines model for MetisSessionProfile.
@@ -418,6 +440,36 @@ type PresignedAvatarTheme struct {
 
 	// Name Name of the avatar theme
 	Name string `json:"name"`
+}
+
+// PresignedVoiceProfile defines model for PresignedVoiceProfile.
+type PresignedVoiceProfile struct {
+	// CreatedAt The creation date of the voice profile.
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// Description The description of the voice profile.
+	Description *string `json:"description,omitempty"`
+
+	// Id The unique identifier for the voice profile.
+	Id string `json:"id"`
+
+	// IsPremade Whether the voice profile is a default premade profile.
+	IsPremade *bool `json:"is_premade,omitempty"`
+
+	// Languages The languages supported by the voice profile.
+	Languages *[]string `json:"languages"`
+
+	// Name The name of the voice profile.
+	Name *string `json:"name,omitempty"`
+
+	// SampleClip The URL of a sample audio clip for the voice profile.
+	SampleClip *string `json:"sample_clip,omitempty"`
+
+	// Status The status of the voice profile.
+	Status *string `json:"status,omitempty"`
+
+	// UserId The user ID of the owner associated with the voice profile.
+	UserId *string `json:"user_id,omitempty"`
 }
 
 // STTApiRequestBody defines model for STTApiRequestBody.
@@ -552,36 +604,6 @@ type TTSParams struct {
 
 	// Temperature The temperature for the TTS model, controls the randomness of the output. Default is 1.0.
 	Temperature *float32 `json:"temperature,omitempty"`
-}
-
-// VoiceProfile defines model for VoiceProfile.
-type VoiceProfile struct {
-	// CreatedAt The creation date of the voice profile.
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-
-	// Description The description of the voice profile.
-	Description *string `json:"description,omitempty"`
-
-	// Id The unique identifier for the voice profile.
-	Id string `json:"id"`
-
-	// IsPremade Whether the voice profile is a default premade profile.
-	IsPremade *bool `json:"is_premade,omitempty"`
-
-	// Languages The languages supported by the voice profile.
-	Languages *[]string `json:"languages"`
-
-	// Name The name of the voice profile.
-	Name *string `json:"name,omitempty"`
-
-	// SampleClip The URL of a sample audio clip for the voice profile.
-	SampleClip *string `json:"sample_clip,omitempty"`
-
-	// Status The status of the voice profile.
-	Status *string `json:"status,omitempty"`
-
-	// UserId The user ID of the owner associated with the voice profile.
-	UserId *string `json:"user_id,omitempty"`
 }
 
 // Webhook defines model for Webhook.

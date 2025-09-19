@@ -458,6 +458,18 @@ components:
           format: uri
           type: string
       type: object
+    FinetuningMetadata:
+      additionalProperties: false
+      properties:
+        Extra:
+          additionalProperties: {}
+          type: object
+        ref_audio:
+          $ref: "#/components/schemas/RemoteFile"
+          description: A sample clip of the finetuned voice model for preview purpose.
+      required:
+        - Extra
+      type: object
     FinetuningOutputInternal:
       additionalProperties: false
       properties:
@@ -466,9 +478,8 @@ components:
         id:
           type: string
         meta_data:
-          additionalProperties: {}
+          $ref: "#/components/schemas/FinetuningMetadata"
           description: Additional metadata about the finetuning process
-          type: object
         model_infer_params:
           additionalProperties: {}
           description: The inference parameters for the model
@@ -715,7 +726,7 @@ components:
         data:
           description: List of premade voice profiles
           items:
-            $ref: "#/components/schemas/VoiceProfile"
+            $ref: "#/components/schemas/PresignedVoiceProfile"
           nullable: true
           type: array
       required:
@@ -732,7 +743,7 @@ components:
       additionalProperties: false
       properties:
         data:
-          $ref: "#/components/schemas/VoiceSystemProfile"
+          $ref: "#/components/schemas/PresignedVoiceSystemProfile"
           description: The voice system profile
       type: object
     GetUserAvatarListApiResponseBody:
@@ -751,7 +762,7 @@ components:
       additionalProperties: false
       properties:
         data:
-          $ref: "#/components/schemas/VoiceProfile"
+          $ref: "#/components/schemas/PresignedVoiceProfile"
           description: Voice profile data
       required:
         - data
@@ -762,7 +773,7 @@ components:
         data:
           description: List of user custom voice profiles
           items:
-            $ref: "#/components/schemas/VoiceProfile"
+            $ref: "#/components/schemas/PresignedVoiceProfile"
           nullable: true
           type: array
       required:
@@ -858,28 +869,42 @@ components:
     MetisSession:
       additionalProperties: false
       properties:
-        desired_state:
-          nullable: true
-          type: string
+        avatar:
+          $ref: "#/components/schemas/MetisSessionAvatar"
+          description: Details of the avatar used in the session
+        idle_timeout:
+          description: Idle timeout duration in minutes
+          format: int64
+          type: integer
         metis_model:
+          description: The Metis model used in the session
           type: string
         session_id:
+          description: Unique identifier for the session
           type: string
         start_time:
+          description: Timestamp when the session started in RFC3339 format
           format: date-time
           type: string
         state:
-          nullable: true
+          description: Current state of the session
           type: string
         user_id:
+          description: User ID of the session owner
           type: string
       required:
-        - session_id
-        - user_id
-        - metis_model
-        - state
-        - desired_state
+        - avatar
         - start_time
+      type: object
+    MetisSessionAvatar:
+      additionalProperties: false
+      properties:
+        id:
+          description: Unique identifier for the avatar
+          type: string
+        name:
+          description: Name of the avatar
+          type: string
       type: object
     MetisSessionProfile:
       additionalProperties: false
@@ -930,6 +955,107 @@ components:
           type: string
       required:
         - name
+      type: object
+    PresignedVoiceProfile:
+      additionalProperties: false
+      properties:
+        created_at:
+          description: The creation date of the voice profile.
+          example: "2023-10-01T12:00:00Z"
+          format: date-time
+          type: string
+        description:
+          description: The description of the voice profile.
+          example: A friendly and professional voice for customer support.
+          type: string
+        id:
+          description: The unique identifier for the voice profile.
+          type: string
+        is_premade:
+          description: Whether the voice profile is a default premade profile.
+          example: true
+          type: boolean
+        languages:
+          description: The languages supported by the voice profile.
+          example:
+            - en
+            - yue
+          items:
+            type: string
+          nullable: true
+          type: array
+        name:
+          description: The name of the voice profile.
+          example: Mira Korner
+          type: string
+        sample_clip:
+          description: The URL of a sample audio clip for the voice profile.
+          example: https://example.com/sample.mp3
+          type: string
+        status:
+          description: The status of the voice profile.
+          example: READY
+          type: string
+        user_id:
+          description: The user ID of the owner associated with the voice profile.
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+          type: string
+      required:
+        - id
+      type: object
+    PresignedVoiceSystemProfile:
+      additionalProperties: false
+      properties:
+        created_at:
+          description: The creation date of the voice profile.
+          example: "2023-10-01T12:00:00Z"
+          format: date-time
+          type: string
+        description:
+          description: The description of the voice profile.
+          example: A friendly and professional voice for customer support.
+          type: string
+        id:
+          description: The unique identifier for the voice profile.
+          type: string
+        is_premade:
+          description: Whether the voice profile is a default premade profile.
+          example: true
+          type: boolean
+        languages:
+          description: The languages supported by the voice profile.
+          example:
+            - en
+            - yue
+          items:
+            type: string
+          nullable: true
+          type: array
+        name:
+          description: The name of the voice profile.
+          example: Mira Korner
+          type: string
+        params:
+          additionalProperties: {}
+          description: The parameters used for the voice model.
+          type: object
+        sample_clip:
+          description: The URL of a sample audio clip for the voice profile.
+          example: https://example.com/sample.mp3
+          type: string
+        service_name:
+          description: The name of the voice service used for this profile.
+          type: string
+        status:
+          description: The status of the voice profile.
+          example: READY
+          type: string
+        user_id:
+          description: The user ID of the owner associated with the voice profile.
+          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
+          type: string
+      required:
+        - id
       type: object
     PrivateApiResponseBody:
       additionalProperties: false
@@ -1212,73 +1338,6 @@ components:
           type: array
       required:
         - terminated_instances
-      type: object
-    VoiceProfile:
-      additionalProperties: false
-      properties:
-        created_at:
-          description: The creation date of the voice profile.
-          example: "2023-10-01T12:00:00Z"
-          format: date-time
-          type: string
-        description:
-          description: The description of the voice profile.
-          example: A friendly and professional voice for customer support.
-          type: string
-        id:
-          description: The unique identifier for the voice profile.
-          type: string
-        is_premade:
-          description: Whether the voice profile is a default premade profile.
-          example: true
-          type: boolean
-        languages:
-          description: The languages supported by the voice profile.
-          example:
-            - en
-            - yue
-          items:
-            type: string
-          nullable: true
-          type: array
-        name:
-          description: The name of the voice profile.
-          example: Mira Korner
-          type: string
-        sample_clip:
-          description: The URL of a sample audio clip for the voice profile.
-          example: https://example.com/sample.mp3
-          type: string
-        status:
-          description: The status of the voice profile.
-          example: READY
-          type: string
-        user_id:
-          description: The user ID of the owner associated with the voice profile.
-          example: f47ac10b-58cc-4372-a567-0e02b2c3d479
-          type: string
-      required:
-        - id
-      type: object
-    VoiceSystemProfile:
-      additionalProperties: false
-      properties:
-        id:
-          description: The unique identifier for the voice profile.
-          type: string
-        name:
-          description: The name of the voice profile.
-          example: Mira Korner
-          type: string
-        params:
-          additionalProperties: {}
-          description: The parameters used for the voice model.
-          type: object
-        service_name:
-          description: The name of the voice service used for this profile.
-          type: string
-      required:
-        - id
       type: object
     Webhook:
       additionalProperties: false

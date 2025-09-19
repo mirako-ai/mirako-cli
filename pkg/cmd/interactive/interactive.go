@@ -82,16 +82,20 @@ func runList(cmd *cobra.Command, args []string) error {
 			state = *session.State
 		}
 
-		desiredState := ""
-		if session.DesiredState != nil {
-			desiredState = *session.DesiredState
+		sessionId := ""
+		if session.SessionId != nil {
+			sessionId = *session.SessionId
+		}
+
+		model := ""
+		if session.MetisModel != nil {
+			model = *session.MetisModel
 		}
 
 		t.AddRow([]interface{}{
-			session.SessionId,
-			session.MetisModel,
+			sessionId,
+			model,
 			state,
-			desiredState,
 			ui.FormatTimestamp(session.StartTime),
 		})
 	}
@@ -268,15 +272,15 @@ func runStart(cmd *cobra.Command, args []string) error {
 	if profileName != "" {
 		fmt.Printf("   Profile: %s\n", profileName)
 	}
-	fmt.Printf("   Session ID: %s\n", resp.Data.Session.SessionId)
-	fmt.Printf("   Model: %s\n", resp.Data.Session.MetisModel)
+	fmt.Printf("   Session ID: %s\n", *resp.Data.Session.SessionId)
+	fmt.Printf("   Model: %s\n", *resp.Data.Session.MetisModel)
 	fmt.Printf("   LLM Model: %s\n", llmModel)
 	fmt.Printf("   Voice: %s\n", voiceID)
 	fmt.Printf("You can use the following token for interactive api calls:\n   %s", resp.Data.SessionToken)
 	fmt.Println()
 	fmt.Println()
 	// try open the url in default browser
-	url := fmt.Sprintf("https://interactive.mirako.ai/i/%s", resp.Data.Session.SessionId)
+	url := fmt.Sprintf("https://interactive.mirako.ai/i/%s", *resp.Data.Session.SessionId)
 	if err = utils.OpenURLAndForget(url); err != nil {
 		// use test hint instead
 		fmt.Printf("You can now visit the url: %s", url)
