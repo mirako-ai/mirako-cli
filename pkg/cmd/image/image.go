@@ -147,7 +147,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 					// Determine output path
 					if outputPath == "" {
-						defaultFilename := fmt.Sprintf("image_%s.jpg", time.Now().Format("20060102_150405"))
+						now := time.Now()
+						timestamp := fmt.Sprintf("%s_%03d", now.Format("20060102_150405"), now.Nanosecond()/1000000)
+						defaultFilename := fmt.Sprintf("image_%s.jpg", timestamp)
 						outputPath = filepath.Join(cfg.DefaultSavePath, defaultFilename)
 					}
 
@@ -303,4 +305,3 @@ func runStatus(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-
