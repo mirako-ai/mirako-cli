@@ -46,25 +46,8 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-func printVersion() {
-	fmt.Printf("Mirako CLI %s\n", Version)
-	fmt.Printf("Commit: %s\n", Commit)
-	fmt.Printf("Built: %s\n", Date)
-}
-
 func getVersionString() string {
-	return fmt.Sprintf("Mirako CLI %s\nCommit: %s\nBuilt: %s", Version, Commit, Date)
-}
-
-func newVersionCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "version",
-		Short: "Show version information",
-		Long:  "Display version, commit hash, and build date information",
-		Run: func(cmd *cobra.Command, args []string) {
-			printVersion()
-		},
-	}
+	return Version
 }
 
 func init() {
@@ -75,7 +58,6 @@ func init() {
 	rootCmd.PersistentFlags().String("api-url", "", "API URL (default https://mirako.co)")
 
 	// Add subcommands
-	rootCmd.AddCommand(newVersionCmd())
 	rootCmd.AddCommand(auth.NewAuthCmd())
 	rootCmd.AddCommand(avatar.NewAvatarCmd())
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
