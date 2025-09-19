@@ -20,7 +20,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-       - name: Run GoReleaser (dry-run)
+      - name: Run GoReleaser (dry-run)
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
