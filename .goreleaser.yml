@@ -1,0 +1,74 @@
+# Build customization
+builds:
+  - main: ./cmd/mirako/
+    binary: mirako
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    goarm:
+      - "7"
+    ignore:
+      - goos: darwin
+        goarch: arm64
+        goarm: "7"
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+# Archive customization
+archives:
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "386" }}i386
+      {{- else }}{{ .Arch }}{{ end }}
+      {{- if .Arm }}v{{ .Arm }}{{ end }}
+    format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+
+# Checksum customization
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+# Changelog customization
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+# Release customization
+release:
+  github:
+    owner: mirako-ai
+    name: mirako-cli
+  draft: false
+  prerelease: auto
+  mode: append
+
+# GitHub Actions integration
+github_urls:
+  api: https://api.github.com/
+  upload: https://uploads.github.com/
+  download: https://github.com/
+
+# Metadata
+metadata:
+  mod_timestamp: '{{ .CommitTimestamp }}'
+
+# Environment
+env:
+  - CGO_ENABLED=0
