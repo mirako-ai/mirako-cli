@@ -3,11 +3,13 @@ name: Test Goreleaser
 on:
   push:
     branches: [ main ]
-  pull_request:
+  pull_request_target:
     branches: [ main ]
+    types: [ opened, synchronize, reopened ]
 
 jobs:
   goreleaser-test:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,4 +30,3 @@ jobs:
           args: release --snapshot --clean --skip=publish,announce
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

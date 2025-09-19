@@ -22,6 +22,13 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
+      - name: Check if tag is on main branch
+        run: |
+          if ! git branch -r --contains ${{ github.ref }} | grep -q origin/main; then
+            echo "Tag not on main branch, skipping release"
+            exit 1
+          fi
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
