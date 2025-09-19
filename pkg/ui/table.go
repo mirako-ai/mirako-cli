@@ -155,7 +155,7 @@ func NewAvatarTable(output io.Writer) *TableWriter {
 // NewSessionTable creates a table for displaying session information
 func NewSessionTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
-	t.SetHeader([]string{"SESSION ID", "MODEL", "STATE", "DESIRED STATE", "START TIME"})
+	t.SetHeader([]string{"SESSION ID", "MODEL", "STATE", "START TIME"})
 	return t
 }
 
