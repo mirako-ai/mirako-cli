@@ -17,28 +17,14 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 
 ## Installation
 
-### Option 1: Pre-built Binary (Recommended)
-
-Download the latest release for your platform from GitHub Releases.
+### Homebrew (macOS & Linux)
 
 ```bash
-# macOS (Apple Silicon)
-wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-darwin-arm64.tar.gz
-tar -xzf mirako-darwin-arm64.tar.gz
-chmod +x mirako
-sudo mv mirako /usr/local/bin/mirako
-
-# Linux
-wget https://github.com/mirako-ai/mirako-cli/releases/latest/download/mirako-linux-amd64.tar.gz
-tar -xzf mirako-linux-amd64.tar.gz
-chmod +x mirako
-sudo mv mirako /usr/local/bin/mirako
-
-# Windows
-# Download mirako-windows-amd64.exe from releases and add to PATH
+# Install Mirako CLI
+brew install mirako-ai/tap/mirako
 ```
 
-Afterwards, you can run `mirako` to verify the installation.
+After installation, verify with `mirako --version`.
 
 ### Option 2: Go Install
 

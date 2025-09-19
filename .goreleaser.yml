@@ -19,9 +19,9 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X main.version={{.Version}}
-      - -X main.commit={{.Commit}}
-      - -X main.date={{.Date}}
+      - -X github.com/mirako-ai/mirako-cli/pkg/cmd/root.Version={{.Version}}
+      - -X github.com/mirako-ai/mirako-cli/pkg/cmd/root.Commit={{.Commit}}
+      - -X github.com/mirako-ai/mirako-cli/pkg/cmd/root.Date={{.Date}}
 
 # Archive customization
 archives:
@@ -68,6 +68,25 @@ github_urls:
 # Metadata
 metadata:
   mod_timestamp: '{{ .CommitTimestamp }}'
+
+# Homebrew tap configuration
+brews:
+  - name: mirako
+    repository:
+      owner: mirako-ai
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Formula
+    homepage: "https://mirako.ai"
+    description: "Official CLI for Mirako AI platform - Create and manage AI avatars, interactive sessions, and AI media generation"
+    license: "MIT"
+    dependencies:
+      - name: git
+        type: optional
+    install: |
+      bin.install "mirako"
+    test: |
+      system "#{bin}/mirako --version"
 
 # Environment
 env:
