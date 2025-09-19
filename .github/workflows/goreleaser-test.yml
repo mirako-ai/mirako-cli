@@ -20,7 +20,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Run GoReleaser (dry-run)
+       - name: Run GoReleaser (dry-run)
         uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
@@ -28,3 +28,4 @@ jobs:
           args: release --snapshot --clean --skip=publish,announce
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
