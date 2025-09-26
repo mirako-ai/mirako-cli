@@ -1,7 +1,9 @@
 package errors
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/mirako-ai/mirako-cli/internal/api"
@@ -73,9 +75,29 @@ func HandleHTTPError(resp *http.Response, context string) error {
 		return nil
 	}
 
+	// Try to read and parse the response body for detailed error information
+	var errorModel *api.ErrorModel
+	if resp.Body != nil {
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err == nil && len(bodyBytes) > 0 {
+			// Try to parse as ErrorModel
+			var em api.ErrorModel
+			if json.Unmarshal(bodyBytes, &em) == nil {
+				errorModel = &em
+			}
+		}
+	}
+
+	// Create API error with parsed error model or fallback to status text
 	apiErr := &APIError{
 		StatusCode: resp.StatusCode,
+		ErrorModel: errorModel,
 		Context:    context,
+	}
+
+	// Set message to status text if no error model detail is available
+	if errorModel == nil || errorModel.Detail == nil {
+		apiErr.Message = http.StatusText(resp.StatusCode)
 	}
 
 	return apiErr
