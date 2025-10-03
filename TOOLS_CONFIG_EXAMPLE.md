@@ -16,7 +16,7 @@ interactive_profiles:
     llm_model: gemini-2.0-flash
     voice_profile_id: your-voice-profile-id
     instruction: You are a helpful AI assistant.
-    tools: ["tool1", "tool2", "tool3"]
+    tools: [{"url":"https://your-tools-domain.com/mcp", "authToken": "some_auth_token"}]
     idle_timeout: 15
   
   advanced:
@@ -26,17 +26,15 @@ interactive_profiles:
     voice_profile_id: your-voice-profile-id
     instruction: You are an advanced AI assistant.
     tools:
-      - name: calculator
-        type: function
-      - name: weather
-        type: api
+      - url: https://your-tools-domain.com/mcp
+        authToken: some_auth_token
+      - url: https://another-tools-domain.com/mcp
+        authToken: another_auth_token
     idle_timeout: 30
 ```
 
 ## Notes
 
 - The `tools` field can be an empty array: `tools: []`
-- It can contain strings: `tools: ["tool1", "tool2"]`
-- It can contain objects: `tools: [{"name": "tool1", "type": "function"}]`
 - The array will be automatically marshaled to JSON when starting a session
-- When using CLI flags, pass the tools as a JSON string: `--tools '[{"name":"tool1"}]'`
+- When using CLI flags, pass the tools as a JSON string: `--tools '[{"url":"some-url"}]'`
