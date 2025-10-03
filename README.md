@@ -97,14 +97,18 @@ interactive_profiles:
     model: metis-2.5
     llm_model: gemini-2.0-flash
     voice_profile_id: [some-voice-id]
-    instruction: "You are a helpful AI assistant."
-    tools: ""
+    instruction: |
+      You are a helpful AI assistant.
+      Answer questions concisely and accurately.
+    tools: []
 
 # Advanced settings
 debug: false
 timeout: 30s
 ```
 
+
+> Checkout [Tools example](./TOOLS_CONFIG_EXAMPLE.md) for configuring tools in interactive sessions.
 
 ### Configuration Precedence
 

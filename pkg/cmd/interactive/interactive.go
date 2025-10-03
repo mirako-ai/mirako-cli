@@ -123,7 +123,7 @@ When using a profile, CLI flags will override profile values.`,
 	cmd.Flags().StringP("llm-model", "l", "", "LLM model to use")
 	cmd.Flags().StringP("voice", "v", "", "Voice profile ID")
 	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt")
-	cmd.Flags().StringP("tools", "", "", "Tools to use in the session")
+	cmd.Flags().StringP("tools", "", "", "Tools to use in the session (JSON array string)")
 	cmd.Flags().Int64P("idle-timeout", "t", 15, "Idle timeout in minutes (-1 to disable, default: 15)")
 
 	return cmd
@@ -168,7 +168,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 			fmt.Printf("    llm_model: gemini-2.0-flash\n")
 			fmt.Printf("    voice_profile_id: [YOUR_VOICE_PROFILE_ID]\n")
 			fmt.Printf("    instruction: You are a helpful AI assistant.\n")
-			fmt.Printf("    tools: \n\n")
+			fmt.Printf("    tools: []\n\n")
 			fmt.Printf("You can also specify a profile name: mirako interactive start [profile-name]\n")
 			fmt.Printf("Or use CLI flags directly: mirako interactive start --avatar YOUR_AVATAR_ID --voice YOUR_VOICE_ID\n")
 			return nil
@@ -219,8 +219,16 @@ func runStart(cmd *cobra.Command, args []string) error {
 	if instruction == "" {
 		instruction = "You are a helpful AI assistant."
 	}
-	if tools == "" {
-		tools = profile.Tools
+
+	var toolsJSON string
+	if tools == "" && len(profile.Tools) > 0 {
+		toolsBytes, err := json.Marshal(profile.Tools)
+		if err != nil {
+			return fmt.Errorf("failed to marshal tools from profile: %w", err)
+		}
+		toolsJSON = string(toolsBytes)
+	} else {
+		toolsJSON = tools
 	}
 
 	// Handle idle timeout - use profile value if flag is default (15) and profile has a value
@@ -252,8 +260,8 @@ func runStart(cmd *cobra.Command, args []string) error {
 		body.IdleTimeout = &idleTimeout
 	}
 
-	if tools != "" {
-		body.Tools = &tools
+	if toolsJSON != "" {
+		body.Tools = &toolsJSON
 	}
 
 	resp, err := client.StartSession(context.Background(), body)

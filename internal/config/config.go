@@ -15,7 +15,7 @@ type InteractiveProfile struct {
 	LLMModel       string `mapstructure:"llm_model" yaml:"llm_model"`
 	VoiceProfileID string `mapstructure:"voice_profile_id" yaml:"voice_profile_id"`
 	Instruction    string `mapstructure:"instruction" yaml:"instruction"`
-	Tools          string `mapstructure:"tools" yaml:"tools"`
+	Tools          []any  `mapstructure:"tools" yaml:"tools"`
 	IdleTimeout    int64  `mapstructure:"idle_timeout" yaml:"idle_timeout"`
 }
 
@@ -81,7 +81,7 @@ func Load() (*Config, error) {
 			IdleTimeout: 15,
 		}
 
-		if err := os.MkdirAll(filepath.Dir(ConfigPath), 0755); err != nil {
+		if err := os.MkdirAll(ConfigPath, 0755); err != nil {
 			return nil, fmt.Errorf("failed to create config directory: %w", err)
 		}
 		// write default config file to ConfigPath
