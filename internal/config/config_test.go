@@ -55,7 +55,7 @@ interactive_profiles:
     llm_model: test-llm-model
     voice_profile_id: test-voice-id
     instruction: test instruction
-    tools: test-tools
+    tools: ["tool1", "tool2"]
 `,
 			expectedConfig: &Config{
 				APIToken:        "test-token",
@@ -69,7 +69,7 @@ interactive_profiles:
 						LLMModel:       "test-llm-model",
 						VoiceProfileID: "test-voice-id",
 						Instruction:    "test instruction",
-						Tools:          "test-tools",
+						Tools:          []any{"tool1", "tool2"},
 					},
 				},
 			},
@@ -227,7 +227,7 @@ func TestSaveConfig(t *testing.T) {
 				LLMModel:       "test-llm",
 				VoiceProfileID: "test-voice-id",
 				Instruction:    "test instruction",
-				Tools:          "test-tools",
+				Tools:          []interface{}{"tool1", "tool2"},
 			},
 			"custom": {
 				AvatarID: "custom-avatar",
@@ -259,6 +259,10 @@ func TestSaveConfig(t *testing.T) {
 		assert.Equal(t, expectedProfile.LLMModel, actualProfile.LLMModel)
 		assert.Equal(t, expectedProfile.VoiceProfileID, actualProfile.VoiceProfileID)
 		assert.Equal(t, expectedProfile.Instruction, actualProfile.Instruction)
+
+		if len(expectedProfile.Tools) == 0 && len(actualProfile.Tools) == 0 {
+			continue
+		}
 		assert.Equal(t, expectedProfile.Tools, actualProfile.Tools)
 	}
 }
