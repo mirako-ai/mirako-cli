@@ -202,7 +202,16 @@ mirako image generate --prompt "A serene mountain landscape at sunset" --aspect-
 
 ```bash
 # Generate talking avatar video
-mirako video generate-talking --image path/to/avatar.jpg --audio path/to/audio.wav --output video.mp4
+mirako video generate --model talking_avatar --image path/to/avatar.jpg --audio path/to/audio.wav --output video.mp4
+
+# Generate avatar motion video
+mirako video generate --model motion --image path/to/avatar.jpg --audio path/to/audio.wav --positive-prompt "A happy young man laughing" --output video.mp4
+
+# Generate avatar motion video with negative prompt
+mirako video generate --model motion --image path/to/avatar.jpg --audio path/to/audio.wav --positive-prompt "A happy young man laughing" --negative-prompt "blurry, distorted" --output video.mp4
+
+# Check video generation status
+mirako video status [task-id]
 ```
 
 ### Voice Management
@@ -287,9 +296,12 @@ mirako image status [task-id]
 
 ```bash
 # 1. Generate talking avatar video
-mirako video generate-talking --image path/to/avatar.jpg --audio path/to/audio.wav
+mirako video generate --model talking_avatar --image path/to/avatar.jpg --audio path/to/audio.wav
 
-# 2. Check generation status (use task ID from step 1)
+# 2. Or generate avatar motion video with prompts
+mirako video generate --model motion --image path/to/avatar.jpg --audio path/to/audio.wav --positive-prompt "A happy young man laughing" --negative-prompt ""
+
+# 3. Check generation status (use task ID from step 1 or 2)
 mirako video status [task-id]
 ```
 
