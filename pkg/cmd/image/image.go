@@ -132,7 +132,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 			currentStatus = string(statusResp.Data.Status)
 
-			if statusResp.Data.Status == api.COMPLETED {
+			if statusResp.Data.Status == api.GenerateTaskOutputStatusCOMPLETED {
 				fmt.Print(clearLine) // Clear the spinner line
 				fmt.Printf("✅ Generation completed!\n")
 
@@ -187,9 +187,9 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 				}
 
 				return nil
-			} else if statusResp.Data.Status == api.FAILED ||
-				statusResp.Data.Status == api.CANCELED ||
-				statusResp.Data.Status == api.TIMEDOUT {
+			} else if statusResp.Data.Status == api.GenerateTaskOutputStatusFAILED ||
+				statusResp.Data.Status == api.GenerateTaskOutputStatusCANCELED ||
+				statusResp.Data.Status == api.GenerateTaskOutputStatusTIMEDOUT {
 				fmt.Print(clearLine) // Clear the spinner line
 				return fmt.Errorf("image generation failed with status: %s", statusResp.Data.Status)
 			}

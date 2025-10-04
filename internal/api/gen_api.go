@@ -61,6 +61,16 @@ const (
 	FinetuningTaskOutputStatusTIMEDOUT   FinetuningTaskOutputStatus = "TIMED_OUT"
 )
 
+// Defines values for GenerateAvatarMotionTaskOutputStatus.
+const (
+	GenerateAvatarMotionTaskOutputStatusCANCELED   GenerateAvatarMotionTaskOutputStatus = "CANCELED"
+	GenerateAvatarMotionTaskOutputStatusCOMPLETED  GenerateAvatarMotionTaskOutputStatus = "COMPLETED"
+	GenerateAvatarMotionTaskOutputStatusFAILED     GenerateAvatarMotionTaskOutputStatus = "FAILED"
+	GenerateAvatarMotionTaskOutputStatusINPROGRESS GenerateAvatarMotionTaskOutputStatus = "IN_PROGRESS"
+	GenerateAvatarMotionTaskOutputStatusINQUEUE    GenerateAvatarMotionTaskOutputStatus = "IN_QUEUE"
+	GenerateAvatarMotionTaskOutputStatusTIMEDOUT   GenerateAvatarMotionTaskOutputStatus = "TIMED_OUT"
+)
+
 // Defines values for GenerateAvatarTaskOutputStatus.
 const (
 	GenerateAvatarTaskOutputStatusCANCELED   GenerateAvatarTaskOutputStatus = "CANCELED"
@@ -83,12 +93,12 @@ const (
 
 // Defines values for GenerateTaskOutputStatus.
 const (
-	CANCELED   GenerateTaskOutputStatus = "CANCELED"
-	COMPLETED  GenerateTaskOutputStatus = "COMPLETED"
-	FAILED     GenerateTaskOutputStatus = "FAILED"
-	INPROGRESS GenerateTaskOutputStatus = "IN_PROGRESS"
-	INQUEUE    GenerateTaskOutputStatus = "IN_QUEUE"
-	TIMEDOUT   GenerateTaskOutputStatus = "TIMED_OUT"
+	GenerateTaskOutputStatusCANCELED   GenerateTaskOutputStatus = "CANCELED"
+	GenerateTaskOutputStatusCOMPLETED  GenerateTaskOutputStatus = "COMPLETED"
+	GenerateTaskOutputStatusFAILED     GenerateTaskOutputStatus = "FAILED"
+	GenerateTaskOutputStatusINPROGRESS GenerateTaskOutputStatus = "IN_PROGRESS"
+	GenerateTaskOutputStatusINQUEUE    GenerateTaskOutputStatus = "IN_QUEUE"
+	GenerateTaskOutputStatusTIMEDOUT   GenerateTaskOutputStatus = "TIMED_OUT"
 )
 
 // Defines values for StartSessionApiRequestBodyModel.
@@ -139,6 +149,27 @@ type AsyncGenerateAvatarApiRequestBody struct {
 
 // AsyncGenerateAvatarApiResponseBody defines model for AsyncGenerateAvatarApiResponseBody.
 type AsyncGenerateAvatarApiResponseBody struct {
+	Data *AsyncTaskStatus `json:"data,omitempty"`
+}
+
+// AsyncGenerateAvatarMotionApiRequestBody defines model for AsyncGenerateAvatarMotionApiRequestBody.
+type AsyncGenerateAvatarMotionApiRequestBody struct {
+	// Audio The base64 encoded audio file to use as the avatar's speech.
+	Audio string `json:"audio"`
+
+	// Image The base64 encoded image to use as the starting frame, which should clearly showing the avatar's face.
+	Image string `json:"image"`
+
+	// NegativePrompt The negative prompt to guide the avatar motion generation.
+	NegativePrompt string `json:"negative_prompt"`
+
+	// PositivePrompt The positive prompt to guide the avatar motion generation.
+	PositivePrompt string   `json:"positive_prompt"`
+	Webhook        *Webhook `json:"webhook,omitempty"`
+}
+
+// AsyncGenerateAvatarMotionApiResponseBody defines model for AsyncGenerateAvatarMotionApiResponseBody.
+type AsyncGenerateAvatarMotionApiResponseBody struct {
 	Data *AsyncTaskStatus `json:"data,omitempty"`
 }
 
@@ -281,6 +312,32 @@ type FinetuningTaskOutput struct {
 // FinetuningTaskOutputStatus The status of the async task. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
 type FinetuningTaskOutputStatus string
 
+// GenerateAvatarMotionStatusApiResponseBody defines model for GenerateAvatarMotionStatusApiResponseBody.
+type GenerateAvatarMotionStatusApiResponseBody struct {
+	Data *GenerateAvatarMotionTaskOutput `json:"data,omitempty"`
+}
+
+// GenerateAvatarMotionTaskOutput defines model for GenerateAvatarMotionTaskOutput.
+type GenerateAvatarMotionTaskOutput struct {
+	// Error Error message if any
+	Error *string `json:"error,omitempty"`
+
+	// FileUrl The URL of the output MP4 video.
+	FileUrl *string `json:"file_url,omitempty"`
+
+	// OutputDuration The duration of the output video in seconds.
+	OutputDuration *float64 `json:"output_duration,omitempty"`
+
+	// Status The status of the async task. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
+	Status GenerateAvatarMotionTaskOutputStatus `json:"status"`
+
+	// TaskId The id of the async task
+	TaskId string `json:"task_id"`
+}
+
+// GenerateAvatarMotionTaskOutputStatus The status of the async task. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
+type GenerateAvatarMotionTaskOutputStatus string
+
 // GenerateAvatarStatusApiResponseBody defines model for GenerateAvatarStatusApiResponseBody.
 type GenerateAvatarStatusApiResponseBody struct {
 	Data *GenerateAvatarTaskOutput `json:"data,omitempty"`
@@ -313,6 +370,9 @@ type GenerateTalkingAvatarStatusApiResponseBody struct {
 
 // GenerateTalkingAvatarTaskOutput defines model for GenerateTalkingAvatarTaskOutput.
 type GenerateTalkingAvatarTaskOutput struct {
+	// Error Error message if any
+	Error *string `json:"error,omitempty"`
+
 	// FileUrl The URL of the output MP4 video.
 	FileUrl *string `json:"file_url,omitempty"`
 
@@ -624,6 +684,9 @@ type CloneVoiceAsyncMultipartBody struct {
 	// CleanData Specify whether de-noise processing should be performed. Default is False.
 	CleanData *bool `json:"clean_data,omitempty"`
 
+	// Description Optional description for the new voice profile.
+	Description *string `json:"description,omitempty"`
+
 	// Name The name of the new voice profile to be created. If not provided, a default name will be generated.
 	Name *string `json:"name,omitempty"`
 
@@ -654,6 +717,9 @@ type ConvertSpeechToTextJSONRequestBody = STTApiRequestBody
 
 // ConvertTextToSpeechJSONRequestBody defines body for ConvertTextToSpeech for application/json ContentType.
 type ConvertTextToSpeechJSONRequestBody = TTSApiRequestBody
+
+// GenerateAvatarMotionAsyncJSONRequestBody defines body for GenerateAvatarMotionAsync for application/json ContentType.
+type GenerateAvatarMotionAsyncJSONRequestBody = AsyncGenerateAvatarMotionApiRequestBody
 
 // GenerateTalkingAvatarAsyncJSONRequestBody defines body for GenerateTalkingAvatarAsync for application/json ContentType.
 type GenerateTalkingAvatarAsyncJSONRequestBody = AsyncGenerateTalkingAvatarApiRequestBody
@@ -789,6 +855,14 @@ type ClientInterface interface {
 	ConvertTextToSpeechWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	ConvertTextToSpeech(ctx context.Context, body ConvertTextToSpeechJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GenerateAvatarMotionAsyncWithBody request with any body
+	GenerateAvatarMotionAsyncWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	GenerateAvatarMotionAsync(ctx context.Context, body GenerateAvatarMotionAsyncJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetAvatarMotionGenerationStatus request
+	GetAvatarMotionGenerationStatus(ctx context.Context, taskId string, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// GenerateTalkingAvatarAsyncWithBody request with any body
 	GenerateTalkingAvatarAsyncWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -1059,6 +1133,42 @@ func (c *Client) ConvertTextToSpeechWithBody(ctx context.Context, contentType st
 
 func (c *Client) ConvertTextToSpeech(ctx context.Context, body ConvertTextToSpeechJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConvertTextToSpeechRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GenerateAvatarMotionAsyncWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGenerateAvatarMotionAsyncRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GenerateAvatarMotionAsync(ctx context.Context, body GenerateAvatarMotionAsyncJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGenerateAvatarMotionAsyncRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+func (c *Client) GetAvatarMotionGenerationStatus(ctx context.Context, taskId string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetAvatarMotionGenerationStatusRequest(c.Server, taskId)
 	if err != nil {
 		return nil, err
 	}
@@ -1681,6 +1791,80 @@ func NewConvertTextToSpeechRequestWithBody(server string, contentType string, bo
 	return req, nil
 }
 
+// NewGenerateAvatarMotionAsyncRequest calls the generic GenerateAvatarMotionAsync builder with application/json body
+func NewGenerateAvatarMotionAsyncRequest(server string, body GenerateAvatarMotionAsyncJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewGenerateAvatarMotionAsyncRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewGenerateAvatarMotionAsyncRequestWithBody generates requests for GenerateAvatarMotionAsync with any type of body
+func NewGenerateAvatarMotionAsyncRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/video/async_generate_avatar_motion")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("POST", queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewGetAvatarMotionGenerationStatusRequest generates requests for GetAvatarMotionGenerationStatus
+func NewGetAvatarMotionGenerationStatusRequest(server string, taskId string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithLocation("simple", false, "task_id", runtime.ParamLocationPath, taskId)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/v1/video/async_generate_avatar_motion/%s/status", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewGenerateTalkingAvatarAsyncRequest calls the generic GenerateTalkingAvatarAsync builder with application/json body
 func NewGenerateTalkingAvatarAsyncRequest(server string, body GenerateTalkingAvatarAsyncJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -2039,6 +2223,14 @@ type ClientWithResponsesInterface interface {
 
 	ConvertTextToSpeechWithResponse(ctx context.Context, body ConvertTextToSpeechJSONRequestBody, reqEditors ...RequestEditorFn) (*ConvertTextToSpeechResponse, error)
 
+	// GenerateAvatarMotionAsyncWithBodyWithResponse request with any body
+	GenerateAvatarMotionAsyncWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GenerateAvatarMotionAsyncResponse, error)
+
+	GenerateAvatarMotionAsyncWithResponse(ctx context.Context, body GenerateAvatarMotionAsyncJSONRequestBody, reqEditors ...RequestEditorFn) (*GenerateAvatarMotionAsyncResponse, error)
+
+	// GetAvatarMotionGenerationStatusWithResponse request
+	GetAvatarMotionGenerationStatusWithResponse(ctx context.Context, taskId string, reqEditors ...RequestEditorFn) (*GetAvatarMotionGenerationStatusResponse, error)
+
 	// GenerateTalkingAvatarAsyncWithBodyWithResponse request with any body
 	GenerateTalkingAvatarAsyncWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GenerateTalkingAvatarAsyncResponse, error)
 
@@ -2381,6 +2573,52 @@ func (r ConvertTextToSpeechResponse) Status() string {
 
 // StatusCode returns HTTPResponse.StatusCode
 func (r ConvertTextToSpeechResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GenerateAvatarMotionAsyncResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *AsyncGenerateAvatarMotionApiResponseBody
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r GenerateAvatarMotionAsyncResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GenerateAvatarMotionAsyncResponse) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+type GetAvatarMotionGenerationStatusResponse struct {
+	Body                          []byte
+	HTTPResponse                  *http.Response
+	JSON200                       *GenerateAvatarMotionStatusApiResponseBody
+	ApplicationproblemJSONDefault *ErrorModel
+}
+
+// Status returns HTTPResponse.Status
+func (r GetAvatarMotionGenerationStatusResponse) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetAvatarMotionGenerationStatusResponse) StatusCode() int {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.StatusCode
 	}
@@ -2751,6 +2989,32 @@ func (c *ClientWithResponses) ConvertTextToSpeechWithResponse(ctx context.Contex
 		return nil, err
 	}
 	return ParseConvertTextToSpeechResponse(rsp)
+}
+
+// GenerateAvatarMotionAsyncWithBodyWithResponse request with arbitrary body returning *GenerateAvatarMotionAsyncResponse
+func (c *ClientWithResponses) GenerateAvatarMotionAsyncWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*GenerateAvatarMotionAsyncResponse, error) {
+	rsp, err := c.GenerateAvatarMotionAsyncWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGenerateAvatarMotionAsyncResponse(rsp)
+}
+
+func (c *ClientWithResponses) GenerateAvatarMotionAsyncWithResponse(ctx context.Context, body GenerateAvatarMotionAsyncJSONRequestBody, reqEditors ...RequestEditorFn) (*GenerateAvatarMotionAsyncResponse, error) {
+	rsp, err := c.GenerateAvatarMotionAsync(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGenerateAvatarMotionAsyncResponse(rsp)
+}
+
+// GetAvatarMotionGenerationStatusWithResponse request returning *GetAvatarMotionGenerationStatusResponse
+func (c *ClientWithResponses) GetAvatarMotionGenerationStatusWithResponse(ctx context.Context, taskId string, reqEditors ...RequestEditorFn) (*GetAvatarMotionGenerationStatusResponse, error) {
+	rsp, err := c.GetAvatarMotionGenerationStatus(ctx, taskId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetAvatarMotionGenerationStatusResponse(rsp)
 }
 
 // GenerateTalkingAvatarAsyncWithBodyWithResponse request with arbitrary body returning *GenerateTalkingAvatarAsyncResponse
@@ -3271,6 +3535,72 @@ func ParseConvertTextToSpeechResponse(rsp *http.Response) (*ConvertTextToSpeechR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest TTSApiResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGenerateAvatarMotionAsyncResponse parses an HTTP response from a GenerateAvatarMotionAsyncWithResponse call
+func ParseGenerateAvatarMotionAsyncResponse(rsp *http.Response) (*GenerateAvatarMotionAsyncResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GenerateAvatarMotionAsyncResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AsyncGenerateAvatarMotionApiResponseBody
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && true:
+		var dest ErrorModel
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSONDefault = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetAvatarMotionGenerationStatusResponse parses an HTTP response from a GetAvatarMotionGenerationStatusWithResponse call
+func ParseGetAvatarMotionGenerationStatusResponse(rsp *http.Response) (*GetAvatarMotionGenerationStatusResponse, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetAvatarMotionGenerationStatusResponse{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest GenerateAvatarMotionStatusApiResponseBody
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -140,6 +140,7 @@ components:
         prompt:
           description: The prompt for the avatar generation.
           example: A realistic photo of an Asian girl with long black hair, round-shaped eyes, wearing pink t-shirt, standing in front of a solid background.
+          maxLength: 250
           type: string
         seed:
           description: Random seed for the generation, if not provided a random seed will be used
@@ -159,6 +160,43 @@ components:
         data:
           $ref: "#/components/schemas/AsyncTaskStatus"
           description: The task status for the avatar generation task
+      type: object
+    AsyncGenerateAvatarMotionApiRequestBody:
+      additionalProperties: false
+      properties:
+        audio:
+          description: The base64 encoded audio file to use as the avatar's speech.
+          example: UklGRiQAAABXQVZFZm10IBAAAAABAAEAgD4AAAB9AAACABAAZGF0YQ==
+          type: string
+        image:
+          description: The base64 encoded image to use as the starting frame, which should clearly showing the avatar's face.
+          example: iVBORw0KGgoAAAANSUhEUgAA...
+          type: string
+        negative_prompt:
+          description: The negative prompt to guide the avatar motion generation.
+          example: ""
+          maxLength: 512
+          type: string
+        positive_prompt:
+          description: The positive prompt to guide the avatar motion generation.
+          example: A happy young man laughing.
+          maxLength: 512
+          type: string
+        webhook:
+          $ref: "#/components/schemas/Webhook"
+          description: The webhook url to notify when the task is completed
+      required:
+        - image
+        - audio
+        - positive_prompt
+        - negative_prompt
+      type: object
+    AsyncGenerateAvatarMotionApiResponseBody:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AsyncTaskStatus"
+          description: The task status for the avatar motion generation task
       type: object
     AsyncGenerateAvatarWebhookRequestBody:
       additionalProperties: true
@@ -531,6 +569,109 @@ components:
         - task_id
         - status
       type: object
+    GenerateAvatarMotionOutputInternal:
+      additionalProperties: false
+      properties:
+        engine_processing_time:
+          description: Model inference time in seconds.
+          format: float
+          type: number
+        error:
+          description: Error message if any
+          type: string
+        output_duration:
+          description: The duration of the output video in seconds.
+          example: 5
+          format: double
+          type: number
+        processing_info:
+          description: Additional info about the processing.
+          type: string
+        request_id:
+          description: The id of the request
+          type: string
+        result_b64_str:
+          description: The base64-encoded MP4 video output. Only available when the result_type is 'b64_str'.
+          type: string
+        result_s3_info:
+          $ref: "#/components/schemas/RemoteFile"
+          description: S3 information for the output video. Only available when the result_type is 's3_file'.
+        total_processing_time:
+          description: Total processing time in seconds.
+          format: float
+          type: number
+      required:
+        - request_id
+      type: object
+    GenerateAvatarMotionStatusApiResponseBody:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/GenerateAvatarMotionTaskOutput"
+          description: The avatar motion generation task output
+      type: object
+    GenerateAvatarMotionTaskOutput:
+      additionalProperties: false
+      properties:
+        error:
+          description: Error message if any
+          type: string
+        file_url:
+          description: The URL of the output MP4 video.
+          type: string
+        output_duration:
+          description: The duration of the output video in seconds.
+          example: 5
+          format: double
+          type: number
+        status:
+          description: The status of the async task. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
+          enum:
+            - IN_QUEUE
+            - IN_PROGRESS
+            - COMPLETED
+            - FAILED
+            - CANCELED
+            - TIMED_OUT
+          example: IN_PROGRESS
+          type: string
+        task_id:
+          description: The id of the async task
+          example: xdac2o3c
+          type: string
+      required:
+        - task_id
+        - status
+      type: object
+    GenerateAvatarMotionWebhookRequestBody:
+      additionalProperties: true
+      properties:
+        delayTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        error:
+          description: The error message if any
+          type: string
+        executionTime:
+          description: The time taken to process the request
+          format: int64
+          type: integer
+        id:
+          description: The id of the request
+          type: string
+        output:
+          $ref: "#/components/schemas/GenerateAvatarMotionOutputInternal"
+          description: The output of the request
+        status:
+          description: The status of the request. Possible values are 'IN_QUEUE', 'IN_PROGRESS', 'COMPLETED', 'FAILED', 'CANCELED', 'TIMED_OUT'
+          type: string
+      required:
+        - id
+        - delayTime
+        - executionTime
+        - status
+      type: object
     GenerateAvatarOutput:
       additionalProperties: false
       properties:
@@ -612,6 +753,9 @@ components:
     GenerateTalkingAvatarTaskOutput:
       additionalProperties: false
       properties:
+        error:
+          description: Error message if any
+          type: string
         file_url:
           description: The URL of the output MP4 video.
           type: string
@@ -1146,6 +1290,7 @@ components:
         instruction:
           description: The instruction prompt for the avatar in the session
           example: You are a helpful assistant.
+          maxLength: 12000
           type: string
         llm_model:
           description: The LLM model to be used for generating avatar's response
@@ -1752,6 +1897,64 @@ paths:
       summary: Text to speech
       tags:
         - Speech
+  /v1/video/async_generate_avatar_motion:
+    post:
+      description: Create a avatar motion video generation task. This is an async operation.
+      operationId: GenerateAvatarMotionAsync
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AsyncGenerateAvatarMotionApiRequestBody"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AsyncGenerateAvatarMotionApiResponseBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - BearerAuth: []
+      summary: Generate a avatar motion video (async)
+      tags:
+        - Video
+  /v1/video/async_generate_avatar_motion/{task_id}/status:
+    get:
+      description: Get the status of a avatar motion video generation task.
+      operationId: GetAvatarMotionGenerationStatus
+      parameters:
+        - description: The task ID of the avatar motion video generation task
+          in: path
+          name: task_id
+          required: true
+          schema:
+            description: The task ID of the avatar motion video generation task
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateAvatarMotionStatusApiResponseBody"
+          description: OK
+        default:
+          content:
+            application/problem+json:
+              schema:
+                $ref: "#/components/schemas/ErrorModel"
+          description: Error
+      security:
+        - BearerAuth: []
+      summary: Get avatar motion task status
+      tags:
+        - Video
   /v1/video/async_generate_talking_avatar:
     post:
       description: Create a talking avatar video generation task. This is an async operation.
@@ -1824,6 +2027,8 @@ paths:
                 contentType: audio/wav
               clean_data:
                 contentType: text/plain
+              description:
+                contentType: text/plain
               name:
                 contentType: text/plain
               webhook:
@@ -1850,6 +2055,11 @@ paths:
                   default: false
                   description: Specify whether de-noise processing should be performed. Default is False.
                   type: boolean
+                description:
+                  description: Optional description for the new voice profile.
+                  example: Sweet British woman voice.
+                  maxLength: 512
+                  type: string
                 name:
                   description: The name of the new voice profile to be created. If not provided, a default name will be generated.
                   example: My Custom Voice

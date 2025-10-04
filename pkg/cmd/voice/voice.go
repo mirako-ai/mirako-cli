@@ -17,7 +17,7 @@ import (
 // Language code to friendly label mapping
 var languageLabels = map[string]string{
 	"en":  "English",
-	"yue": "Cantonese", 
+	"yue": "Cantonese",
 	"zh":  "Mandarin",
 }
 
@@ -26,7 +26,7 @@ func formatLanguages(languages *[]string) string {
 	if languages == nil || len(*languages) == 0 {
 		return ""
 	}
-	
+
 	labels := make([]string, len(*languages))
 	for i, lang := range *languages {
 		if label, ok := languageLabels[lang]; ok {
@@ -35,7 +35,7 @@ func formatLanguages(languages *[]string) string {
 			labels[i] = lang // fallback to original code if no mapping found
 		}
 	}
-	
+
 	return strings.Join(labels, ", ")
 }
 
@@ -183,8 +183,9 @@ Required files:
 - Annotations: text file with training annotations
 
 Example usage:
-  mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt
-  mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --clean-data
+   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt
+   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --clean-data
+   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --description "Sweet British woman voice"
 
 The command will:
 1. Scan the audio directory for .wav or .mp3 files
@@ -199,6 +200,7 @@ The command will:
 	cmd.Flags().StringP("annotations", "t", "", "Path to annotation file")
 	cmd.Flags().IntP("poll-interval", "p", 10, "Polling interval in seconds for checking status")
 	cmd.Flags().BoolP("clean-data", "c", false, "Enable de-noise processing (default: false)")
+	cmd.Flags().StringP("description", "d", "", "Optional description for the voice profile (max 512 characters)")
 
 	cmd.MarkFlagRequired("name")
 	cmd.MarkFlagRequired("audio-dir")
@@ -220,10 +222,16 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	annotations, _ := cmd.Flags().GetString("annotations")
 	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
 	cleanData, _ := cmd.Flags().GetBool("clean-data")
+	description, _ := cmd.Flags().GetString("description")
 
 	// Validate name length
 	if len(name) < 3 || len(name) > 64 {
 		return fmt.Errorf("name must be between 3 and 64 characters")
+	}
+
+	// Validate description length
+	if len(description) > 512 {
+		return fmt.Errorf("description must be 512 characters or less")
 	}
 
 	// Validate directories and files exist
@@ -263,8 +271,11 @@ func runCloneVoice(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Annotations file: %s\n", annotations)
 	fmt.Printf("   Found %d audio files\n", len(audioFiles))
 	fmt.Printf("   Clean data: %t\n", cleanData)
+	if description != "" {
+		fmt.Printf("   Description: %s\n", description)
+	}
 
-	resp, err := c.CloneVoice(ctx, name, audioDir, annotations, cleanData)
+	resp, err := c.CloneVoice(ctx, name, audioDir, annotations, cleanData, description)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
 			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
