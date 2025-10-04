@@ -555,7 +555,7 @@ func (c *Client) DeleteVoiceProfile(ctx context.Context, profileID string) (*api
 	return resp, nil
 }
 
-func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, annotationFile string, cleanData bool) (*api.AsyncFinetuningApiResponseBody, error) {
+func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, annotationFile string, cleanData bool, description string) (*api.AsyncFinetuningApiResponseBody, error) {
 	// Create multipart form data
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -572,6 +572,13 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	}
 	if err := writer.WriteField("clean_data", cleanDataStr); err != nil {
 		return nil, fmt.Errorf("failed to write clean_data field: %w", err)
+	}
+
+	// Add description field if provided
+	if description != "" {
+		if err := writer.WriteField("description", description); err != nil {
+			return nil, fmt.Errorf("failed to write description field: %w", err)
+		}
 	}
 
 	// Add annotation file
