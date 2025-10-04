@@ -465,6 +465,50 @@ func (c *Client) GenerateTalkingAvatar(ctx context.Context, audio, image string)
 	return nil, handleErrorResponse(resp.HTTPResponse, "generate talking avatar video")
 }
 
+func (c *Client) GenerateAvatarMotion(ctx context.Context, audio, image, positivePrompt, negativePrompt string) (*api.AsyncGenerateAvatarMotionApiResponseBody, error) {
+	request := api.AsyncGenerateAvatarMotionApiRequestBody{
+		Audio:          audio,
+		Image:          image,
+		PositivePrompt: positivePrompt,
+		NegativePrompt: negativePrompt,
+	}
+	resp, err := c.apiClient.GenerateAvatarMotionAsyncWithResponse(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
+		return resp.JSON200, nil
+	}
+	if resp.ApplicationproblemJSONDefault != nil {
+		apiErr := &errors.APIError{
+			StatusCode: resp.HTTPResponse.StatusCode,
+			ErrorModel: resp.ApplicationproblemJSONDefault,
+			Context:    "generate avatar motion video",
+		}
+		return nil, apiErr
+	}
+	return nil, handleErrorResponse(resp.HTTPResponse, "generate avatar motion video")
+}
+
+func (c *Client) GetAvatarMotionStatus(ctx context.Context, taskID string) (*api.GenerateAvatarMotionStatusApiResponseBody, error) {
+	resp, err := c.apiClient.GetAvatarMotionGenerationStatusWithResponse(ctx, taskID)
+	if err != nil {
+		return nil, err
+	}
+	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
+		return resp.JSON200, nil
+	}
+	if resp.ApplicationproblemJSONDefault != nil {
+		apiErr := &errors.APIError{
+			StatusCode: resp.HTTPResponse.StatusCode,
+			ErrorModel: resp.ApplicationproblemJSONDefault,
+			Context:    "get avatar motion video status",
+		}
+		return nil, apiErr
+	}
+	return nil, handleErrorResponse(resp.HTTPResponse, "get avatar motion video status")
+}
+
 func (c *Client) GetTalkingAvatarStatus(ctx context.Context, taskID string) (*api.GenerateTalkingAvatarStatusApiResponseBody, error) {
 	resp, err := c.apiClient.GetTalkingAvatarGenerationStatusWithResponse(ctx, taskID)
 	if err != nil {
