@@ -12,13 +12,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
+	"github.com/mirako-ai/mirako-go/api"
+	sdkclient "github.com/mirako-ai/mirako-go/client"
 )
 
 type Client struct {
-	apiClient *api.ClientWithResponses
+	sdkClient *sdkclient.Client
 	config    *config.Config
 }
 
@@ -27,589 +28,465 @@ func New(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("API token is required. Run 'mirako auth login' to authenticate")
 	}
 
-	// Create HTTP client with authentication
-	httpClient := &http.Client{}
-
-	// Create API client with authentication middleware
-	apiClient, err := api.NewClientWithResponses(cfg.APIURL,
-		api.WithHTTPClient(httpClient),
-		func(c *api.Client) error {
-			// Add authentication header to all requests
-			c.RequestEditors = append(c.RequestEditors, func(ctx context.Context, req *http.Request) error {
-				req.Header.Set("Authorization", "Bearer "+cfg.APIToken)
-				return nil
-			})
-			return nil
-		},
+	sdkClient, err := sdkclient.NewClient(
+		sdkclient.WithAPIKey(cfg.APIToken),
+		sdkclient.WithBaseURL(cfg.APIURL),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}
 
 	return &Client{
-		apiClient: apiClient,
+		sdkClient: sdkClient,
 		config:    cfg,
 	}, nil
 }
 
-// ErrorResponse represents a response that may contain an error model
-type ErrorResponse interface {
-	GetHTTPResponse() *http.Response
-	GetApplicationproblemJSONDefault() *api.ErrorModel
-}
-
-// handleErrorResponse processes API response errors and returns appropriate error types
-func handleErrorResponse(resp *http.Response, context string) error {
+func handleHTTPResponse(resp *http.Response, context string) error {
 	if resp == nil {
 		return errors.NewAPIError(0, "no response received", context)
 	}
-
-	statusCode := resp.StatusCode
-	if statusCode >= 200 && statusCode < 300 {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
 	}
-
-	// Try to read and parse the response body for detailed error information
-	var errorModel *api.ErrorModel
-	if resp.Body != nil {
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err == nil && len(bodyBytes) > 0 {
-			// Try to parse as ErrorModel
-			var em api.ErrorModel
-			if json.Unmarshal(bodyBytes, &em) == nil {
-				errorModel = &em
-			}
-		}
-	}
-
-	// Create API error with parsed error model or fallback to status text
-	apiErr := &errors.APIError{
-		StatusCode: statusCode,
-		ErrorModel: errorModel,
-		Context:    context,
-	}
-
-	// Set message to status text if no error model detail is available
-	if errorModel == nil || errorModel.Detail == nil {
-		apiErr.Message = http.StatusText(statusCode)
-	}
-
-	return apiErr
+	return errors.HandleHTTPError(resp, context)
 }
 
-// Avatar methods
+func parseJSONResponse(resp *http.Response, target interface{}) error {
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+	if err := json.Unmarshal(bodyBytes, target); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+	return nil
+}
+
 func (c *Client) ListAvatars(ctx context.Context) (*api.GetUserAvatarListApiResponseBody, error) {
-	resp, err := c.apiClient.GetUserAvatarListWithResponse(ctx)
+	resp, err := c.sdkClient.GetUserAvatarList(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "list avatars"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "list avatars",
-		}
-		return nil, apiErr
+
+	var result api.GetUserAvatarListApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "list avatars")
+	return &result, nil
 }
 
 func (c *Client) GetAvatar(ctx context.Context, id string) (*api.GetAvatarApiResponseBody, error) {
-	resp, err := c.apiClient.GetAvatarByIdWithResponse(ctx, id)
+	resp, err := c.sdkClient.GetAvatarById(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get avatar"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get avatar",
-		}
-		return nil, apiErr
+
+	var result api.GetAvatarApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get avatar")
+	return &result, nil
 }
 
 func (c *Client) GenerateAvatar(ctx context.Context, prompt string, seed *int64) (*api.AsyncGenerateAvatarApiResponseBody, error) {
-	request := api.AsyncGenerateAvatarApiRequestBody{
+	body := api.GenerateAvatarAsyncJSONRequestBody{
 		Prompt: prompt,
 		Seed:   seed,
 	}
-	resp, err := c.apiClient.GenerateAvatarAsyncWithResponse(ctx, request)
+	resp, err := c.sdkClient.GenerateAvatarAsync(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "generate avatar"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "generate avatar",
-		}
-		return nil, apiErr
+
+	var result api.AsyncGenerateAvatarApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "generate avatar")
+	return &result, nil
 }
 
 func (c *Client) GetAvatarStatus(ctx context.Context, taskID string) (*api.GenerateAvatarStatusApiResponseBody, error) {
-	resp, err := c.apiClient.GetAvatarGenerationStatusWithResponse(ctx, taskID)
+	resp, err := c.sdkClient.GetAvatarGenerationStatus(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get avatar status"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get avatar status",
-		}
-		return nil, apiErr
+
+	var result api.GenerateAvatarStatusApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get avatar status")
+	return &result, nil
 }
 
-func (c *Client) DeleteAvatar(ctx context.Context, avatarID string) (*api.DeleteAvatarResponse, error) {
-	resp, err := c.apiClient.DeleteAvatarWithResponse(ctx, avatarID)
+func (c *Client) DeleteAvatar(ctx context.Context, avatarID string) error {
+	resp, err := c.sdkClient.DeleteAvatar(ctx, avatarID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return resp, nil
+	defer resp.Body.Close()
+
+	return handleHTTPResponse(resp, "delete avatar")
 }
 
 func (c *Client) BuildAvatar(ctx context.Context, name, image string) (*api.AsyncBuildApiResponseBody, error) {
-	request := api.AsyncBuildApiRequestBody{
+	body := api.BuildAvatarAsyncJSONRequestBody{
 		Name:  name,
 		Image: image,
 	}
-	resp, err := c.apiClient.BuildAvatarAsyncWithResponse(ctx, request)
+	resp, err := c.sdkClient.BuildAvatarAsync(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "build avatar"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "build avatar",
-		}
-		return nil, apiErr
+
+	var result api.AsyncBuildApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "build avatar")
+	return &result, nil
 }
 
-// Interactive methods
 func (c *Client) ListSessions(ctx context.Context) (*api.ListSessionsApiResponseBody, error) {
-	resp, err := c.apiClient.ListInteractiveSessionsWithResponse(ctx)
+	resp, err := c.sdkClient.ListInteractiveSessions(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "list sessions"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "list sessions",
-		}
-		return nil, apiErr
+
+	var result api.ListSessionsApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "list sessions",
-		}
-		return nil, apiErr
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "list sessions")
+	return &result, nil
 }
 
-func (c *Client) StartSession(ctx context.Context, body api.StartSessionApiRequestBody) (*api.StartSessionApiResponseBody, error) {
-	resp, err := c.apiClient.StartInteractiveSessionWithResponse(ctx, body)
+func (c *Client) StartSession(ctx context.Context, body api.StartInteractiveSessionJSONRequestBody) (*api.StartSessionApiResponseBody, error) {
+	resp, err := c.sdkClient.StartInteractiveSession(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "start session"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "start session",
-		}
-		return nil, apiErr
+
+	var result api.StartSessionApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "start session",
-		}
-		return nil, apiErr
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "start session")
+	return &result, nil
 }
 
 func (c *Client) StopSessions(ctx context.Context, sessionIDs []string) (*api.StopSessionsApiResponseBody, error) {
-	body := api.StopSessionsApiRequestBody{
+	body := api.StopInteractiveSessionsJSONRequestBody{
 		SessionIds: &sessionIDs,
 	}
-	resp, err := c.apiClient.StopInteractiveSessionsWithResponse(ctx, body)
+	resp, err := c.sdkClient.StopInteractiveSessions(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "stop sessions"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "stop sessions",
-		}
-		return nil, apiErr
+
+	var result api.StopSessionsApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "stop sessions",
-		}
-		return nil, apiErr
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "stop sessions")
+	return &result, nil
 }
 
 func (c *Client) GetSessionProfile(ctx context.Context, sessionID string) (*api.GetSessionProfileApiResponseBody, error) {
-	resp, err := c.apiClient.GetSessionProfileWithResponse(ctx, sessionID)
+	resp, err := c.sdkClient.GetSessionProfile(ctx, sessionID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get session profile"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get session profile",
-		}
-		return nil, apiErr
+
+	var result api.GetSessionProfileApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get session profile",
-		}
-		return nil, apiErr
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get session profile")
+	return &result, nil
 }
 
-// Image methods
 func (c *Client) GenerateImage(ctx context.Context, prompt string, aspectRatio api.AsyncGenerateImageApiRequestBodyAspectRatio, seed *int64) (*api.AsyncGenerateImageApiResponseBody, error) {
-	request := api.AsyncGenerateImageApiRequestBody{
+	body := api.GenerateImageAsyncJSONRequestBody{
 		Prompt:      prompt,
 		AspectRatio: aspectRatio,
 		Seed:        seed,
 	}
-	resp, err := c.apiClient.GenerateImageAsyncWithResponse(ctx, request)
+	resp, err := c.sdkClient.GenerateImageAsync(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "generate image"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "generate image",
-		}
-		return nil, apiErr
+
+	var result api.AsyncGenerateImageApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "generate image",
-		}
-		return nil, apiErr
-	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "generate image")
+	return &result, nil
 }
 
 func (c *Client) GetImageStatus(ctx context.Context, taskID string) (*api.GenerateImageStatusApiResponseBody, error) {
-	resp, err := c.apiClient.GetImageGenerationStatusWithResponse(ctx, taskID)
+	resp, err := c.sdkClient.GetImageGenerationStatus(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get image status"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get image status",
-		}
-		return nil, apiErr
+
+	var result api.GenerateImageStatusApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get image status")
+	return &result, nil
 }
 
-// Speech methods
 func (c *Client) SpeechToText(ctx context.Context, audio string) (*api.STTApiResponseBody, error) {
-	request := api.STTApiRequestBody{
+	body := api.ConvertSpeechToTextJSONRequestBody{
 		Audio: audio,
 	}
-	resp, err := c.apiClient.ConvertSpeechToTextWithResponse(ctx, request)
+	resp, err := c.sdkClient.ConvertSpeechToText(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "speech to text"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "speech to text",
-		}
-		return nil, apiErr
+
+	var result api.STTApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "speech to text")
+	return &result, nil
 }
 
 func (c *Client) TextToSpeech(ctx context.Context, text, voiceProfileID, returnType string, chineseLanguage *api.TTSApiRequestBodyChineseLanguage, opts *api.TTSParams) (*api.TTSApiResponseBody, error) {
-	request := api.TTSApiRequestBody{
+	body := api.ConvertTextToSpeechJSONRequestBody{
 		Text:            text,
 		VoiceProfileId:  voiceProfileID,
 		ReturnType:      returnType,
 		ChineseLanguage: chineseLanguage,
 		Opts:            opts,
 	}
-	resp, err := c.apiClient.ConvertTextToSpeechWithResponse(ctx, request)
+	resp, err := c.sdkClient.ConvertTextToSpeech(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "text to speech"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "text to speech",
-		}
-		return nil, apiErr
+
+	var result api.TTSApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "text to speech")
+	return &result, nil
 }
 
-// Video methods
 func (c *Client) GenerateTalkingAvatar(ctx context.Context, audio, image string) (*api.AsyncGenerateTalkingAvatarApiResponseBody, error) {
-	request := api.AsyncGenerateTalkingAvatarApiRequestBody{
+	body := api.GenerateTalkingAvatarAsyncJSONRequestBody{
 		Audio: audio,
 		Image: image,
 	}
-	resp, err := c.apiClient.GenerateTalkingAvatarAsyncWithResponse(ctx, request)
+	resp, err := c.sdkClient.GenerateTalkingAvatarAsync(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "generate talking avatar video"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "generate talking avatar video",
-		}
-		return nil, apiErr
+
+	var result api.AsyncGenerateTalkingAvatarApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "generate talking avatar video")
+	return &result, nil
 }
 
 func (c *Client) GenerateAvatarMotion(ctx context.Context, audio, image, positivePrompt, negativePrompt string) (*api.AsyncGenerateAvatarMotionApiResponseBody, error) {
-	request := api.AsyncGenerateAvatarMotionApiRequestBody{
+	body := api.GenerateAvatarMotionAsyncJSONRequestBody{
 		Audio:          audio,
 		Image:          image,
 		PositivePrompt: positivePrompt,
 		NegativePrompt: negativePrompt,
 	}
-	resp, err := c.apiClient.GenerateAvatarMotionAsyncWithResponse(ctx, request)
+	resp, err := c.sdkClient.GenerateAvatarMotionAsync(ctx, body)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "generate avatar motion video"); err != nil {
+		return nil, err
 	}
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "generate avatar motion video",
-		}
-		return nil, apiErr
+
+	var result api.AsyncGenerateAvatarMotionApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "generate avatar motion video")
+	return &result, nil
 }
 
 func (c *Client) GetAvatarMotionStatus(ctx context.Context, taskID string) (*api.GenerateAvatarMotionStatusApiResponseBody, error) {
-	resp, err := c.apiClient.GetAvatarMotionGenerationStatusWithResponse(ctx, taskID)
+	resp, err := c.sdkClient.GetAvatarMotionGenerationStatus(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get avatar motion video status"); err != nil {
+		return nil, err
 	}
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get avatar motion video status",
-		}
-		return nil, apiErr
+
+	var result api.GenerateAvatarMotionStatusApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get avatar motion video status")
+	return &result, nil
 }
 
 func (c *Client) GetTalkingAvatarStatus(ctx context.Context, taskID string) (*api.GenerateTalkingAvatarStatusApiResponseBody, error) {
-	resp, err := c.apiClient.GetTalkingAvatarGenerationStatusWithResponse(ctx, taskID)
+	resp, err := c.sdkClient.GetTalkingAvatarGenerationStatus(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get talking avatar video status"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get talking avatar video status",
-		}
-		return nil, apiErr
+
+	var result api.GenerateTalkingAvatarStatusApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get talking avatar video status")
+	return &result, nil
 }
 
-// Voice methods
-
 func (c *Client) ListPremadeProfiles(ctx context.Context) (*api.GetPremadeProfilesApiResponseBody, error) {
-	resp, err := c.apiClient.GetPremadeVoiceProfilesWithResponse(ctx)
+	resp, err := c.sdkClient.GetPremadeVoiceProfiles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "list voice profiles"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "list voice profiles",
-		}
-		return nil, apiErr
+
+	var result api.GetPremadeProfilesApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "list voice profiles")
+	return &result, nil
 }
 
 func (c *Client) ListVoiceProfiles(ctx context.Context) (*api.GetVoiceProfilesApiResponseBody, error) {
-	resp, err := c.apiClient.GetUserVoiceProfilesWithResponse(ctx)
+	resp, err := c.sdkClient.GetUserVoiceProfiles(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "list custom voice profiles"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "list custom voice profiles",
-		}
-		return nil, apiErr
+
+	var result api.GetVoiceProfilesApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "list custom voice profiles")
+	return &result, nil
 }
 
 func (c *Client) GetVoiceProfile(ctx context.Context, profileID string) (*api.GetVoiceProfileApiResponseBody, error) {
-	resp, err := c.apiClient.GetVoiceProfileWithResponse(ctx, profileID)
+	resp, err := c.sdkClient.GetVoiceProfile(ctx, profileID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get voice profile"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get voice profile",
-		}
-		return nil, apiErr
+
+	var result api.GetVoiceProfileApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get voice profile")
+	return &result, nil
 }
 
-func (c *Client) DeleteVoiceProfile(ctx context.Context, profileID string) (*api.DeleteVoiceProfileResponse, error) {
-	resp, err := c.apiClient.DeleteVoiceProfileWithResponse(ctx, profileID)
+func (c *Client) DeleteVoiceProfile(ctx context.Context, profileID string) error {
+	resp, err := c.sdkClient.DeleteVoiceProfile(ctx, profileID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return resp, nil
+	defer resp.Body.Close()
+
+	return handleHTTPResponse(resp, "delete voice profile")
 }
 
 func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, annotationFile string, cleanData bool, description string) (*api.AsyncFinetuningApiResponseBody, error) {
-	// Create multipart form data
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
-	// Add name field
 	if err := writer.WriteField("name", name); err != nil {
 		return nil, fmt.Errorf("failed to write name field: %w", err)
 	}
 
-	// Add clean_data field
 	cleanDataStr := "false"
 	if cleanData {
 		cleanDataStr = "true"
@@ -618,14 +495,12 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 		return nil, fmt.Errorf("failed to write clean_data field: %w", err)
 	}
 
-	// Add description field if provided
 	if description != "" {
 		if err := writer.WriteField("description", description); err != nil {
 			return nil, fmt.Errorf("failed to write description field: %w", err)
 		}
 	}
 
-	// Add annotation file
 	annotationFileHandle, err := os.Open(annotationFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open annotation file: %w", err)
@@ -640,12 +515,10 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 		return nil, fmt.Errorf("failed to create annotation form file: %w", err)
 	}
 
-	// Stream annotation file content instead of loading into memory
 	if _, err := io.Copy(annotationWriter, annotationFileHandle); err != nil {
 		return nil, fmt.Errorf("failed to write annotation data: %w", err)
 	}
 
-	// Add audio sample files
 	audioFiles, err := ScanAudioFiles(audioDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan audio files: %w", err)
@@ -655,17 +528,14 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 		return nil, fmt.Errorf("no audio files (.wav or .mp3) found in directory: %s", audioDir)
 	}
 
-	// Log the number of files being uploaded for debugging
 	fmt.Printf("Uploading %d audio files for voice cloning...\n", len(audioFiles))
 
 	for _, audioFile := range audioFiles {
-		// Open file for streaming instead of loading into memory
 		file, err := os.Open(audioFile)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open audio file %s: %w", audioFile, err)
 		}
 
-		// Create form file with proper content type for audio/wav
 		audioWriter, err := writer.CreatePart(map[string][]string{
 			"Content-Disposition": {fmt.Sprintf(`form-data; name="audio_samples"; filename="%s"`, filepath.Base(audioFile))},
 			"Content-Type":        {"audio/wav"},
@@ -675,7 +545,6 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 			return nil, fmt.Errorf("failed to create audio form file: %w", err)
 		}
 
-		// Stream file content instead of loading into memory
 		if _, err := io.Copy(audioWriter, file); err != nil {
 			file.Close()
 			return nil, fmt.Errorf("failed to write audio data: %w", err)
@@ -686,7 +555,6 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 
 	writer.Close()
 
-	// Create HTTP request with multipart form data
 	req, err := http.NewRequestWithContext(ctx, "POST",
 		fmt.Sprintf("%s/v1/voice/clone", c.config.APIURL), body)
 	if err != nil {
@@ -696,9 +564,8 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 	req.Header.Set("Authorization", "Bearer "+c.config.APIToken)
 
-	// Make HTTP request directly since oapi-codegen doesn't support multipart form data well
 	httpClient := &http.Client{
-		Timeout: 1 * time.Hour, // Extended timeout for large file uploads
+		Timeout: 1 * time.Hour,
 	}
 	resp, err := httpClient.Do(req)
 	if err != nil {
@@ -706,18 +573,15 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 	}
 	defer resp.Body.Close()
 
-	// Read response body once for consistent handling
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	// Check if response is successful
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
-	// Parse response
 	var apiResp api.AsyncFinetuningApiResponseBody
 	if err := json.Unmarshal(bodyBytes, &apiResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w (response: %s)", err, string(bodyBytes))
@@ -727,21 +591,19 @@ func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, a
 }
 
 func (c *Client) GetVoiceCloneStatus(ctx context.Context, taskID string) (*api.FinetuningStatusApiResponseBody, error) {
-	resp, err := c.apiClient.GetVoiceCloningStatusWithResponse(ctx, taskID)
+	resp, err := c.sdkClient.GetVoiceCloningStatus(ctx, taskID)
 	if err != nil {
 		return nil, err
 	}
-	if resp.HTTPResponse.StatusCode >= 200 && resp.HTTPResponse.StatusCode < 300 {
-		return resp.JSON200, nil
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get voice clone status"); err != nil {
+		return nil, err
 	}
-	// Check if the response was parsed as an error model
-	if resp.ApplicationproblemJSONDefault != nil {
-		apiErr := &errors.APIError{
-			StatusCode: resp.HTTPResponse.StatusCode,
-			ErrorModel: resp.ApplicationproblemJSONDefault,
-			Context:    "get voice clone status",
-		}
-		return nil, apiErr
+
+	var result api.FinetuningStatusApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
 	}
-	return nil, handleErrorResponse(resp.HTTPResponse, "get voice clone status")
+	return &result, nil
 }

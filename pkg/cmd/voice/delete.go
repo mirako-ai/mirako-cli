@@ -51,7 +51,7 @@ func runDelete(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	_, err = client.DeleteVoiceProfile(cmd.Context(), profileID)
+	err = client.DeleteVoiceProfile(cmd.Context(), profileID)
 	if err != nil {
 		fmt.Printf("Error deleting voice profile: %v\n", err)
 		os.Exit(1)
