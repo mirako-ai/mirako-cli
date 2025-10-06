@@ -6,7 +6,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/mirako-ai/mirako-cli/internal/api"
+	"github.com/mirako-ai/mirako-go/api"
 )
 
 // APIError represents an API error response

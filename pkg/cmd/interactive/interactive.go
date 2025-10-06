@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"github.com/mirako-ai/mirako-cli/pkg/utils"
+	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -247,7 +247,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 		modelPtr = &modelValue
 	}
 
-	body := api.StartSessionApiRequestBody{
+	body := api.StartInteractiveSessionJSONRequestBody{
 		AvatarId:       avatarID,
 		Model:          modelPtr,
 		LlmModel:       llmModel,

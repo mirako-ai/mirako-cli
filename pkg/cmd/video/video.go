@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mirako-ai/mirako-cli/internal/api"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
+	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
 )
 

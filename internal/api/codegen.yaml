@@ -1,8 +1,0 @@
-package: api
-output: gen_api.go
-
-generate:
-  models: true    # generate the models
-  client: true 
-  embedded-spec : false  # don't embed the raw OpenAPI spec
-

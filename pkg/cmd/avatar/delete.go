@@ -5,9 +5,9 @@ import (
 	"os"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/spf13/cobra"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
+	"github.com/spf13/cobra"
 )
 
 var deleteCmd = &cobra.Command{
@@ -51,7 +51,7 @@ func runDelete(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
-	_, err = client.DeleteAvatar(cmd.Context(), avatarID)
+	err = client.DeleteAvatar(cmd.Context(), avatarID)
 	if err != nil {
 		fmt.Printf("Error deleting avatar: %v\n", err)
 		os.Exit(1)

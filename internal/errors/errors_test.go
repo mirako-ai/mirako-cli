@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/mirako-ai/mirako-cli/internal/api"
+	"github.com/mirako-ai/mirako-go/api"
 )
 
 func TestAPIError_GetUserFriendlyMessage(t *testing.T) {
