@@ -85,6 +85,7 @@ brews:
         type: optional
     install: |
       bin.install "mirako"
+      generate_completions_from_executable(bin/"mirako", "completion")
     test: |
       system "#{bin}/mirako --version"
 
