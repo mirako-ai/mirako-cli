@@ -158,7 +158,7 @@ func newGenerateCmd() *cobra.Command {
 		RunE:  runGenerate,
 	}
 
-	cmd.Flags().StringP("prompt", "p", "", "Prompt for avatar generation")
+	cmd.Flags().StringP("prompt", "p", "", "Prompt for avatar generation (max 1000 characters)")
 	cmd.Flags().Int64P("seed", "s", 0, "Seed for reproducible generation (optional)")
 	cmd.Flags().StringP("output", "o", "", "Output file path for the generated avatar (e.g., ./output/avatar.jpg)")
 	cmd.Flags().BoolP("no-save", "n", false, "Skip saving the image to disk")
@@ -178,6 +178,11 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	prompt, _ := cmd.Flags().GetString("prompt")
 	if prompt == "" {
 		return fmt.Errorf("prompt is required. Use --prompt flag")
+	}
+
+	// Validate prompt length (max 1000 characters per API spec)
+	if len(prompt) > 1000 {
+		return fmt.Errorf("prompt is too long (max 1000 characters, got %d)", len(prompt))
 	}
 
 	outputPath, _ := cmd.Flags().GetString("output")

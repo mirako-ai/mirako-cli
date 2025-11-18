@@ -9,7 +9,7 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 - **🎭 AI Avatar Management**: Build, generate, list, and manage AI avatars
 - **💬 Interactive Sessions**: Launch and manage AI chat sessions
 - **🎙️ Speech Services**: Speech-to-text (STT) and text-to-speech (TTS)
-- **🎨 Image Generation**: Create AI-generated images from text prompts
+- **🎨 Image Generation**: Create AI-generated images from text prompts with support for text-image-to-image generation
 - **🎬 Video Creation**: Generate talking avatar videos with custom audio
 - **🗣️ Voice Cloning**: Create and manage custom voice profiles
 - **🔐 Secure Authentication**: OAuth 2.0 API token management
@@ -143,7 +143,7 @@ MIRAKO_DEBUG        # Enable debug mode
 # List all avatars
 mirako avatar list
 
-# Generate a new avatar from text prompt
+# Generate a new avatar from text prompt (max 1000 characters)
 mirako avatar generate --prompt "A professional business woman in a suit"
 
 # Build avatar from image
@@ -194,8 +194,26 @@ mirako speech stt --audio path/to/audio.wav --output transcript.txt
 ### Image Generation
 
 ```bash
-# Generate image from prompt
+# Generate image from prompt (async mode - with polling)
 mirako image generate --prompt "A serene mountain landscape at sunset" --aspect-ratio 16:9
+
+# Generate image synchronously (instant results, no polling)
+mirako image generate --prompt "A beautiful ocean view" --sync
+
+# Text-to-image with input images (unlabeled)
+mirako image generate --prompt "Apply sunset filter" --image photo.jpg
+
+# Text-image-to-image with labeled inputs (up to 5 images)
+mirako image generate \
+  --prompt "Replace {Product} with a red car and change {Background} to mountains" \
+  --labeled-image product.jpg:Product \
+  --labeled-image background.jpg:Background
+
+# Generate with seed for reproducibility
+mirako image generate --prompt "A cat on a windowsill" --seed 12345
+
+# Generate with custom output path
+mirako image generate --prompt "A cozy cabin" --output ./images/cabin.jpg
 ```
 
 ### Video Generation
@@ -285,11 +303,22 @@ mirako interactive start --avatar [avatar-id]
 ### Image Generation Workflow
 
 ```bash
-# 1. Generate an image
+# Option 1: Async generation (default, with status polling)
 mirako image generate --prompt "A serene mountain landscape at sunset" --aspect-ratio 16:9
 
-# 2. Check generation status (use task ID from step 1)
+# Check generation status (use task ID from step 1)
 mirako image status [task-id]
+
+# Option 2: Sync generation (instant results, no status polling needed)
+mirako image generate --prompt "A beautiful garden" --sync
+
+# Option 3: Text-image-to-image generation
+# Prepare input images, then generate
+mirako image generate \
+  --prompt "Make {Subject} wearing a red dress in a {Scene}" \
+  --labeled-image person.jpg:Subject \
+  --labeled-image park.jpg:Scene \
+  --output result.jpg
 ```
 
 ### Video Generation Workflow
