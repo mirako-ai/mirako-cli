@@ -491,9 +491,9 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	fmt.Printf("\n⏳ Avatar build in progress...\n")
 	fmt.Printf("\n💡 Check the avatar build status anytime with:\n")
 	fmt.Printf("   mirako avatar list\n")
-	fmt.Printf("\n💡 Or view details for this avatar with:\n")
+	fmt.Printf("\n  Or view details for this avatar with:\n")
 	fmt.Printf("   mirako avatar view %s\n", avatarID)
-	fmt.Printf("\n✅ You can safely quit this program now (Ctrl+C). The build will continue in the background.\n")
+	fmt.Printf("\n✅ You can safely quit this program now (Ctrl+C).\n")
 
 	// Use separate tickers for polling and spinner animation
 	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
