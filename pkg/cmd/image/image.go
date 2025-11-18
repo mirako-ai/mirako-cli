@@ -41,10 +41,13 @@ func newGenerateCmd() *cobra.Command {
 
 	cmd.Flags().StringP("prompt", "p", "", "Prompt for image generation")
 	cmd.Flags().StringP("aspect-ratio", "a", "16:9", "Aspect ratio for the image (1:1, 16:9, 2:3, 3:2, 3:4, 4:3, 9:16)")
-	cmd.Flags().Int64P("seed", "s", 0, "Seed for reproducible generation (optional)")
+	cmd.Flags().Int32P("seed", "s", 0, "Seed for reproducible generation (optional)")
 	cmd.Flags().StringP("output", "o", "", "Output file path for the generated image (e.g., ./output/image.jpg)")
 	cmd.Flags().BoolP("no-save", "n", false, "Skip saving the image to disk")
 	cmd.Flags().IntP("poll-interval", "i", 2, "Polling interval in seconds for checking status")
+	cmd.Flags().Bool("sync", false, "Use synchronous generation (instant results)")
+	cmd.Flags().StringArrayP("image", "", []string{}, "Input image path (can be specified multiple times)")
+	cmd.Flags().StringArrayP("labeled-image", "", []string{}, "Labeled input image in format path:label (can be specified multiple times)")
 
 	return cmd
 }
@@ -63,15 +66,23 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	aspectRatioStr, _ := cmd.Flags().GetString("aspect-ratio")
-	aspectRatio := api.AsyncGenerateImageApiRequestBodyAspectRatio(aspectRatioStr)
 	outputPath, _ := cmd.Flags().GetString("output")
 	noSave, _ := cmd.Flags().GetBool("no-save")
 	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
+	syncMode, _ := cmd.Flags().GetBool("sync")
+	images, _ := cmd.Flags().GetStringArray("image")
+	labeledImages, _ := cmd.Flags().GetStringArray("labeled-image")
 
-	seed, _ := cmd.Flags().GetInt64("seed")
-	var seedPtr *int64
+	seed, _ := cmd.Flags().GetInt32("seed")
+	var seedPtr *int32
 	if seed != 0 {
 		seedPtr = &seed
+	}
+
+	// Parse input images
+	inputImages, err := parseInputImages(images, labeledImages)
+	if err != nil {
+		return fmt.Errorf("failed to parse input images: %w", err)
 	}
 
 	client, err := client.New(cfg)
@@ -79,9 +90,37 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create client: %w", err)
 	}
 
-	// Start generation
+	// Use synchronous mode if requested
+	if syncMode {
+		aspectRatio := api.GenerateImageApiRequestBodyAspectRatio(aspectRatioStr)
+		fmt.Printf("🚀 Generating image synchronously...\n")
+
+		resp, err := client.GenerateImageSync(ctx, prompt, aspectRatio, seedPtr, inputImages)
+		if err != nil {
+			if apiErr, ok := errors.IsAPIError(err); ok {
+				return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
+			}
+			return fmt.Errorf("failed to generate image: %w", err)
+		}
+
+		if resp.Data == nil || resp.Data.Image == nil {
+			return fmt.Errorf("unexpected response from server")
+		}
+
+		fmt.Printf("✅ Generation completed!\n")
+
+		if noSave {
+			fmt.Printf("📸 Image generated (%d bytes) - skipping save due to --no-save flag\n", len(*resp.Data.Image))
+			return nil
+		}
+
+		return saveImageFromBase64(*resp.Data.Image, outputPath, cfg.DefaultSavePath)
+	}
+
+	// Async mode (default)
+	aspectRatio := api.AsyncGenerateImageApiRequestBodyAspectRatio(aspectRatioStr)
 	fmt.Printf("🚀 Starting image generation...\n")
-	resp, err := client.GenerateImage(ctx, prompt, aspectRatio, seedPtr)
+	resp, err := client.GenerateImage(ctx, prompt, aspectRatio, seedPtr, inputImages)
 	if err != nil {
 		if apiErr, ok := errors.IsAPIError(err); ok {
 			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
@@ -142,48 +181,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 						return nil
 					}
 
-					// Save the image
-					imageData := *statusResp.Data.Image
-
-					// Determine output path
-					if outputPath == "" {
-						now := time.Now()
-						timestamp := fmt.Sprintf("%s_%03d", now.Format("20060102_150405"), now.Nanosecond()/1000000)
-						defaultFilename := fmt.Sprintf("image_%s.jpg", timestamp)
-						outputPath = filepath.Join(cfg.DefaultSavePath, defaultFilename)
-					}
-
-					// Ensure .jpg extension
-					if !strings.HasSuffix(strings.ToLower(outputPath), ".jpg") && !strings.HasSuffix(strings.ToLower(outputPath), ".jpeg") {
-						outputPath += ".jpg"
-					}
-
-					// Decode base64 image
-					// Remove data URL prefix if present
-					if strings.HasPrefix(imageData, "data:image") {
-						commaIndex := strings.Index(imageData, ",")
-						if commaIndex != -1 {
-							imageData = imageData[commaIndex+1:]
-						}
-					}
-
-					decodedImage, err := base64.StdEncoding.DecodeString(imageData)
-					if err != nil {
-						return fmt.Errorf("failed to decode image data: %w", err)
-					}
-
-					// Create directory if it doesn't exist
-					dir := filepath.Dir(outputPath)
-					if err := os.MkdirAll(dir, 0755); err != nil {
-						return fmt.Errorf("failed to create directory: %w", err)
-					}
-
-					// Save the file
-					if err := os.WriteFile(outputPath, decodedImage, 0644); err != nil {
-						return fmt.Errorf("failed to save image: %w", err)
-					}
-
-					fmt.Printf("💾 Image saved to: %s\n", outputPath)
+					return saveImageFromBase64(*statusResp.Data.Image, outputPath, cfg.DefaultSavePath)
 				}
 
 				return nil
@@ -303,5 +301,127 @@ func runStatus(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	return nil
+}
+
+// encodeImageToDataURL reads an image file and converts it to a data URL base64 format
+func encodeImageToDataURL(imagePath string) (string, error) {
+	// Read the image file
+	imageData, err := os.ReadFile(imagePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image file %s: %w", imagePath, err)
+	}
+
+	// Detect content type
+	contentType := "image/jpeg"
+	ext := strings.ToLower(filepath.Ext(imagePath))
+	if ext == ".png" {
+		contentType = "image/png"
+	} else if ext == ".jpg" || ext == ".jpeg" {
+		contentType = "image/jpeg"
+	}
+
+	// Encode to base64
+	encoded := base64.StdEncoding.EncodeToString(imageData)
+
+	// Return data URL format
+	return fmt.Sprintf("data:%s;base64,%s", contentType, encoded), nil
+}
+
+// parseInputImages parses --image and --labeled-image flags and returns a slice of LabeledImage
+func parseInputImages(images []string, labeledImages []string) (*[]api.LabeledImage, error) {
+	if len(images) == 0 && len(labeledImages) == 0 {
+		return nil, nil
+	}
+
+	var result []api.LabeledImage
+
+	// Process unlabeled images
+	for _, imagePath := range images {
+		dataURL, err := encodeImageToDataURL(imagePath)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, api.LabeledImage{
+			Data:  dataURL,
+			Label: nil, // No label
+		})
+	}
+
+	// Process labeled images
+	for _, labeledImage := range labeledImages {
+		// Split by the last colon to support paths with colons
+		lastColon := strings.LastIndex(labeledImage, ":")
+		if lastColon == -1 {
+			return nil, fmt.Errorf("invalid labeled image format: %s (expected format: path:label)", labeledImage)
+		}
+
+		imagePath := labeledImage[:lastColon]
+		label := labeledImage[lastColon+1:]
+
+		if label == "" {
+			return nil, fmt.Errorf("label cannot be empty for labeled image: %s", labeledImage)
+		}
+
+		dataURL, err := encodeImageToDataURL(imagePath)
+		if err != nil {
+			return nil, err
+		}
+
+		result = append(result, api.LabeledImage{
+			Data:  dataURL,
+			Label: &label,
+		})
+	}
+
+	// API supports max 5 images
+	if len(result) > 5 {
+		return nil, fmt.Errorf("maximum 5 input images are supported, got %d", len(result))
+	}
+
+	return &result, nil
+}
+
+// saveImageFromBase64 saves a base64 encoded image to disk
+func saveImageFromBase64(imageData string, outputPath string, defaultSavePath string) error {
+	// Determine output path
+	if outputPath == "" {
+		now := time.Now()
+		timestamp := fmt.Sprintf("%s_%03d", now.Format("20060102_150405"), now.Nanosecond()/1000000)
+		defaultFilename := fmt.Sprintf("image_%s.jpg", timestamp)
+		outputPath = filepath.Join(defaultSavePath, defaultFilename)
+	}
+
+	// Ensure .jpg extension
+	if !strings.HasSuffix(strings.ToLower(outputPath), ".jpg") && !strings.HasSuffix(strings.ToLower(outputPath), ".jpeg") {
+		outputPath += ".jpg"
+	}
+
+	// Remove data URL prefix if present
+	if strings.HasPrefix(imageData, "data:image") {
+		commaIndex := strings.Index(imageData, ",")
+		if commaIndex != -1 {
+			imageData = imageData[commaIndex+1:]
+		}
+	}
+
+	// Decode base64 image
+	decodedImage, err := base64.StdEncoding.DecodeString(imageData)
+	if err != nil {
+		return fmt.Errorf("failed to decode image data: %w", err)
+	}
+
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(outputPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Save the file
+	if err := os.WriteFile(outputPath, decodedImage, 0644); err != nil {
+		return fmt.Errorf("failed to save image: %w", err)
+	}
+
+	fmt.Printf("💾 Image saved to: %s\n", outputPath)
 	return nil
 }

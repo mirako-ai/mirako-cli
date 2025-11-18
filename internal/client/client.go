@@ -246,11 +246,12 @@ func (c *Client) GetSessionProfile(ctx context.Context, sessionID string) (*api.
 	return &result, nil
 }
 
-func (c *Client) GenerateImage(ctx context.Context, prompt string, aspectRatio api.AsyncGenerateImageApiRequestBodyAspectRatio, seed *int64) (*api.AsyncGenerateImageApiResponseBody, error) {
+func (c *Client) GenerateImage(ctx context.Context, prompt string, aspectRatio api.AsyncGenerateImageApiRequestBodyAspectRatio, seed *int32, images *[]api.LabeledImage) (*api.AsyncGenerateImageApiResponseBody, error) {
 	body := api.GenerateImageAsyncJSONRequestBody{
 		Prompt:      prompt,
 		AspectRatio: aspectRatio,
 		Seed:        seed,
+		Images:      images,
 	}
 	resp, err := c.sdkClient.GenerateImageAsync(ctx, body)
 	if err != nil {
@@ -263,6 +264,30 @@ func (c *Client) GenerateImage(ctx context.Context, prompt string, aspectRatio a
 	}
 
 	var result api.AsyncGenerateImageApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) GenerateImageSync(ctx context.Context, prompt string, aspectRatio api.GenerateImageApiRequestBodyAspectRatio, seed *int32, images *[]api.LabeledImage) (*api.GenerateImageApiResponseBody, error) {
+	body := api.GenerateImageJSONRequestBody{
+		Prompt:      prompt,
+		AspectRatio: aspectRatio,
+		Seed:        seed,
+		Images:      images,
+	}
+	resp, err := c.sdkClient.GenerateImage(ctx, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "generate image synchronously"); err != nil {
+		return nil, err
+	}
+
+	var result api.GenerateImageApiResponseBody
 	if err := parseJSONResponse(resp, &result); err != nil {
 		return nil, err
 	}
