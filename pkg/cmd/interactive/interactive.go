@@ -125,6 +125,7 @@ When using a profile, CLI flags will override profile values.`,
 	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt")
 	cmd.Flags().StringP("tools", "", "", "Tools to use in the session (JSON array string)")
 	cmd.Flags().Int64P("idle-timeout", "t", 15, "Idle timeout in minutes (-1 to disable, default: 15)")
+	cmd.Flags().Bool("use-beta", false, "Use beta interactive model (latest dev model, not suitable for production)")
 
 	return cmd
 }
@@ -184,6 +185,7 @@ func runStart(cmd *cobra.Command, args []string) error {
 	instruction, _ := cmd.Flags().GetString("instruction")
 	tools, _ := cmd.Flags().GetString("tools")
 	idleTimeout, _ := cmd.Flags().GetInt64("idle-timeout")
+	useBeta, _ := cmd.Flags().GetBool("use-beta")
 
 	// Apply priority: CLI flags > profile values > defaults
 	if avatarID == "" {
@@ -262,6 +264,10 @@ func runStart(cmd *cobra.Command, args []string) error {
 
 	if toolsJSON != "" {
 		body.Tools = &toolsJSON
+	}
+
+	if useBeta {
+		body.UseBeta = &useBeta
 	}
 
 	resp, err := client.StartSession(context.Background(), body)
