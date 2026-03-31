@@ -89,6 +89,7 @@ func runList(cmd *cobra.Command, args []string) error {
 			avatar.Name,
 			avatar.Id,
 			avatar.Status,
+			formatSupportedInteractiveModels(avatar.SupportedInteractiveModels),
 			ui.FormatTimestamp(avatar.CreatedAt),
 		})
 	}
@@ -133,6 +134,7 @@ func runView(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Status: %s\n", resp.Data.Status)
 	fmt.Printf("Created: %s\n", resp.Data.CreatedAt.Local().Format("2006-01-02 15:04"))
 	fmt.Printf("User ID: %s\n", resp.Data.UserId)
+	fmt.Printf("Supported Models: %s\n", formatSupportedInteractiveModels(resp.Data.SupportedInteractiveModels))
 
 	if resp.Data.Themes != nil && len(*resp.Data.Themes) > 0 {
 		fmt.Println("\nThemes:")
@@ -148,6 +150,14 @@ func runView(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func formatSupportedInteractiveModels(models *[]string) string {
+	if models == nil || len(*models) == 0 {
+		return "-"
+	}
+
+	return strings.Join(*models, ", ")
 }
 
 func newGenerateCmd() *cobra.Command {
