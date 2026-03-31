@@ -148,7 +148,7 @@ func FormatDuration(d time.Duration) string {
 // NewAvatarTable creates a table for displaying avatar information
 func NewAvatarTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
-	t.SetHeader([]string{"NAME", "ID", "STATUS", "CREATED"})
+	t.SetHeader([]string{"NAME", "ID", "STATUS", "MODELS", "CREATED"})
 	return t
 }
 
