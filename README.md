@@ -17,7 +17,33 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 
 ## Installation
 
-### Homebrew (macOS & Linux)
+### Option 1: Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
+```
+
+This installer:
+
+- Detects the current OS and CPU architecture automatically
+- Downloads the matching GitHub release archive
+- Verifies the archive checksum
+- Installs `mirako` into `~/.mirako/bin` by default
+- Adds that directory to your shell `PATH` when needed
+
+Optional examples:
+
+```bash
+# Install a specific version
+curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --version 1.2.1
+
+# Install to a custom directory
+MIRAKO_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
+```
+
+After installation, verify with `mirako --version`.
+
+### Option 2: Homebrew (macOS & Linux)
 
 ```bash
 # Install Mirako CLI
@@ -26,7 +52,7 @@ brew install mirako-ai/tap/mirako
 
 After installation, verify with `mirako --version`.
 
-### Option 2: Go Install
+### Option 3: Go Install
 
 ```bash
 go install github.com/mirako-ai/mirako-cli/cmd/mirako@latest
@@ -37,13 +63,13 @@ export PATH=$PATH:$GOPATH/bin
 mirako
 ```
 
-### Option 3: Build from Source
+### Option 4: Build from Source
 
 ```bash
 git clone https://github.com/mirako-ai/mirako-cli.git
 cd mirako-cli
-go build -o mirako-cli ./cmd/mirako/
-sudo mv mirako-cli /usr/local/bin/mirako
+go build -o mirako ./cmd/mirako/
+sudo mv mirako /usr/local/bin/mirako
 ```
 
 ### Requirements
