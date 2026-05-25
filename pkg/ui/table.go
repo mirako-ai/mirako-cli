@@ -159,6 +159,13 @@ func NewSessionTable(output io.Writer) *TableWriter {
 	return t
 }
 
+// NewAgentTable creates a table for displaying agent information
+func NewAgentTable(output io.Writer) *TableWriter {
+	t := NewTableWriter(output)
+	t.SetHeader([]string{"NAME", "ID", "AVATAR ID", "VOICE ID", "MODEL", "LLM MODEL", "UPDATED"})
+	return t
+}
+
 // NewVoiceProfileTable creates a table for displaying voice profile information
 func NewVoiceProfileTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
