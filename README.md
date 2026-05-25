@@ -23,15 +23,9 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
 ```
 
-This installer:
+This installer will install the latest `mirako` into `~/.mirako/bin` by default.
 
-- Detects the current OS and CPU architecture automatically
-- Downloads the matching GitHub release archive
-- Verifies the archive checksum
-- Installs `mirako` into `~/.mirako/bin` by default
-- Leaves shell config files unchanged and shows the `PATH` entry to add manually when needed
-
-Optional examples:
+Some options for the installer:
 
 ```bash
 # Install a specific version
@@ -40,8 +34,6 @@ curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.s
 # Install to a custom directory
 curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --install-dir /usr/local/bin
 ```
-
-After installation, verify with `mirako --version`.
 
 ### Option 2: Homebrew (macOS & Linux)
 
