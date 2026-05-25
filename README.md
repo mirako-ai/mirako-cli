@@ -155,6 +155,18 @@ MIRAKO_DEBUG        # Enable debug mode
 | `--config` | Custom config file | `--config /path/to/config.yml` |
 | `--debug` | Enable debug mode | `--debug` |
 
+### Update Commands
+
+```bash
+# Check whether a newer CLI release is available
+mirako update --check
+
+# Update Mirako CLI to the latest release
+mirako update
+```
+
+`mirako --version` also shows a concise update hint when a newer release is available.
+
 ### Avatar Commands
 
 ```bash
