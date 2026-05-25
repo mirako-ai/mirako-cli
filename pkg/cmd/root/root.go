@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/mirako-ai/mirako-cli/internal/config"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/agent"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/auth"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/avatar"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/completion"
@@ -62,6 +63,7 @@ func init() {
 	rootCmd.SetVersionTemplate("{{.Version}}\n")
 
 	// Add subcommands
+	rootCmd.AddCommand(agent.NewAgentCmd())
 	rootCmd.AddCommand(auth.NewAuthCmd())
 	rootCmd.AddCommand(avatar.NewAvatarCmd())
 	rootCmd.AddCommand(completion.NewCompletionCmd())

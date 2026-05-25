@@ -63,6 +63,70 @@ func parseJSONResponse(resp *http.Response, target interface{}) error {
 	return nil
 }
 
+func (c *Client) ListAgents(ctx context.Context) (*api.ListAgentsApiResponseBody, error) {
+	resp, err := c.sdkClient.ListAgents(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "list agents"); err != nil {
+		return nil, err
+	}
+
+	var result api.ListAgentsApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) GetAgent(ctx context.Context, agentID string) (*api.GetAgentApiResponseBody, error) {
+	resp, err := c.sdkClient.GetAgent(ctx, agentID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get agent"); err != nil {
+		return nil, err
+	}
+
+	var result api.GetAgentApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) CreateAgent(ctx context.Context, body api.CreateAgentJSONRequestBody) (*api.CreateAgentApiResponseBody, error) {
+	resp, err := c.sdkClient.CreateAgent(ctx, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "create agent"); err != nil {
+		return nil, err
+	}
+
+	var result api.CreateAgentApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) DeleteAgent(ctx context.Context, agentID string) error {
+	resp, err := c.sdkClient.DeleteAgent(ctx, agentID)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	return handleHTTPResponse(resp, "delete agent")
+}
+
 func (c *Client) ListAvatars(ctx context.Context) (*api.GetUserAvatarListApiResponseBody, error) {
 	resp, err := c.sdkClient.GetUserAvatarList(ctx)
 	if err != nil {
