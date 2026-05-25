@@ -33,7 +33,7 @@ Environment variables:
 Examples:
   curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
   curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --version 1.2.1
-  MIRAKO_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --install-dir /usr/local/bin
 EOF
 }
 

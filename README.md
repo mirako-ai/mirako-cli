@@ -38,7 +38,7 @@ Optional examples:
 curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --version 1.2.1
 
 # Install to a custom directory
-MIRAKO_INSTALL_DIR=/usr/local/bin curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --install-dir /usr/local/bin
 ```
 
 After installation, verify with `mirako --version`.
