@@ -1,11 +1,14 @@
 package root
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/config"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/agent"
+	"github.com/mirako-ai/mirako-cli/internal/updater"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/auth"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/avatar"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/completion"
@@ -13,6 +16,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/image"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/interactive"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/speech"
+	updatecmd "github.com/mirako-ai/mirako-cli/pkg/cmd/update"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/video"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/voice"
 	"github.com/spf13/cobra"
@@ -45,11 +49,40 @@ For more information, visit: https://mirako.ai`,
 }
 
 func Execute() error {
+	rootCmd.Version = versionStringForArgs(os.Args[1:])
 	return rootCmd.Execute()
 }
 
 func getVersionString() string {
 	return Version
+}
+
+func versionStringForArgs(args []string) string {
+	version := getVersionString()
+	if !isRootVersionRequest(args) {
+		return version
+	}
+
+	if hint := updateHint(version); hint != "" {
+		return version + "\n" + hint
+	}
+	return version
+}
+
+func isRootVersionRequest(args []string) bool {
+	return len(args) == 1 && (args[0] == "--version" || args[0] == "-v")
+}
+
+func updateHint(currentVersion string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	defer cancel()
+
+	result, err := updater.CheckForUpdate(ctx, currentVersion, updater.Options{})
+	if err != nil || !result.Newer {
+		return ""
+	}
+
+	return fmt.Sprintf("Update available: %s. Run `mirako update`.", result.LatestVersion)
 }
 
 func init() {
@@ -71,6 +104,7 @@ func init() {
 	rootCmd.AddCommand(image.NewImageCmd())
 	rootCmd.AddCommand(interactive.NewInteractiveCmd())
 	rootCmd.AddCommand(speech.NewSpeechCmd())
+	rootCmd.AddCommand(updatecmd.NewUpdateCmd(func() string { return Version }))
 	rootCmd.AddCommand(video.NewVideoCmd())
 	rootCmd.AddCommand(voice.NewVoiceCmd())
 }

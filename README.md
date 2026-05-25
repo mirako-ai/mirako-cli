@@ -17,7 +17,25 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 
 ## Installation
 
-### Homebrew (macOS & Linux)
+### Option 1: Quick Install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash
+```
+
+This installer will install the latest `mirako` into `~/.mirako/bin` by default.
+
+Some options for the installer:
+
+```bash
+# Install a specific version
+curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --version 1.2.1
+
+# Install to a custom directory
+curl -fsSL https://raw.githubusercontent.com/mirako-ai/mirako-cli/main/install.sh | bash -s -- --install-dir /usr/local/bin
+```
+
+### Option 2: Homebrew (macOS & Linux)
 
 ```bash
 # Install Mirako CLI
@@ -26,7 +44,7 @@ brew install mirako-ai/tap/mirako
 
 After installation, verify with `mirako --version`.
 
-### Option 2: Go Install
+### Option 3: Go Install
 
 ```bash
 go install github.com/mirako-ai/mirako-cli/cmd/mirako@latest
@@ -37,13 +55,13 @@ export PATH=$PATH:$GOPATH/bin
 mirako
 ```
 
-### Option 3: Build from Source
+### Option 4: Build from Source
 
 ```bash
 git clone https://github.com/mirako-ai/mirako-cli.git
 cd mirako-cli
-go build -o mirako-cli ./cmd/mirako/
-sudo mv mirako-cli /usr/local/bin/mirako
+go build -o mirako ./cmd/mirako/
+sudo mv mirako /usr/local/bin/mirako
 ```
 
 ### Requirements
@@ -136,6 +154,18 @@ MIRAKO_DEBUG        # Enable debug mode
 | `--api-url` | Custom API URL | `--api-url https://api.mirako.co` |
 | `--config` | Custom config file | `--config /path/to/config.yml` |
 | `--debug` | Enable debug mode | `--debug` |
+
+### Update Commands
+
+```bash
+# Check whether a newer CLI release is available
+mirako update --check
+
+# Update Mirako CLI to the latest release
+mirako update
+```
+
+`mirako --version` also shows a concise update hint when a newer release is available.
 
 ### Avatar Commands
 
