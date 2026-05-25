@@ -6,7 +6,6 @@ REPO="mirako-ai/mirako-cli"
 
 INSTALL_DIR="${MIRAKO_INSTALL_DIR:-$HOME/.mirako/bin}"
 REQUESTED_VERSION="${MIRAKO_VERSION:-}"
-NO_MODIFY_PATH=false
 path_was_present=false
 
 RED='\033[0;31m'
@@ -24,7 +23,6 @@ Options:
   -h, --help                Show this help message
   -v, --version <version>   Install a specific version (for example: 1.2.1)
   -d, --install-dir <path>  Install directory (default: ~/.mirako/bin)
-      --no-modify-path      Do not add the install directory to your shell PATH
 
 Environment variables:
   MIRAKO_VERSION            Same as --version
@@ -72,7 +70,7 @@ parse_args() {
         shift 2
         ;;
       --no-modify-path)
-        NO_MODIFY_PATH=true
+        # Accepted for compatibility. The installer does not modify shell config files.
         shift
         ;;
       *)
@@ -229,7 +227,7 @@ path_contains_install_dir() {
   esac
 }
 
-append_path_entry() {
+print_path_hint() {
   local shell_name config_file path_line
   shell_name="$(basename "${SHELL:-}")"
 
@@ -255,29 +253,21 @@ append_path_entry() {
       path_line="export PATH=\"$INSTALL_DIR:\$PATH\""
       ;;
     *)
-      warn "Could not determine which shell config to update"
-      printf 'Add this to your shell config:\n  export PATH="%s:$PATH"\n' "$INSTALL_DIR"
-      return
+      config_file="your shell config (for example ~/.zshrc, ~/.bashrc, or ~/.profile)"
+      path_line="export PATH=\"$INSTALL_DIR:\$PATH\""
       ;;
   esac
 
-  mkdir -p "$(dirname "$config_file")"
-  touch "$config_file"
-
-  if grep -Fqx "$path_line" "$config_file"; then
-    info "$config_file already contains the Mirako PATH entry"
-    return
-  fi
-
-  printf '\n# mirako\n%s\n' "$path_line" >> "$config_file"
-  info "Added $INSTALL_DIR to PATH in $config_file"
+  printf 'Add Mirako to PATH by adding this line to %s:\n' "$config_file"
+  printf '  %s\n' "$path_line"
+  printf 'Then restart your shell, or source that file in your current shell.\n'
 }
 
 print_success() {
   printf '\n'
   printf 'Mirako CLI is installed in %s\n' "$INSTALL_DIR"
   if [[ "$path_was_present" == false ]]; then
-    printf 'Open a new shell or run: export PATH="%s:$PATH"\n' "$INSTALL_DIR"
+    print_path_hint
   fi
   printf 'Verify with: %s --version\n' "$APP_NAME"
 }
@@ -309,10 +299,6 @@ main() {
     verify_checksum
     extract_archive
     install_binary
-  fi
-
-  if [[ "$NO_MODIFY_PATH" == false ]] && ! path_contains_install_dir; then
-    append_path_entry
   fi
 
   print_success

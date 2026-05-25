@@ -29,7 +29,7 @@ This installer:
 - Downloads the matching GitHub release archive
 - Verifies the archive checksum
 - Installs `mirako` into `~/.mirako/bin` by default
-- Adds that directory to your shell `PATH` when needed
+- Leaves shell config files unchanged and shows the `PATH` entry to add manually when needed
 
 Optional examples:
 
