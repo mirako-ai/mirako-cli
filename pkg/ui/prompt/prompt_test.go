@@ -25,6 +25,14 @@ func TestPrompterSelectReturnsOptionValue(t *testing.T) {
 	}
 }
 
+func TestTerminalNewlinesUseCarriageReturnsForRawMode(t *testing.T) {
+	got := terminalNewlines("first\nsecond\r\nthird")
+	want := "first\r\nsecond\r\nthird"
+	if got != want {
+		t.Fatalf("terminalNewlines() = %q, want %q", got, want)
+	}
+}
+
 func TestVisualLineCountAccountsForSoftWrappedRows(t *testing.T) {
 	block := "\x1b[32m◆\x1b[0m Agent type\n│     provide prompt, model/tools and host runtime on Mirako\n"
 

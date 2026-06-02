@@ -313,7 +313,11 @@ func (p *Prompter) writeBlock(block string, previousLines int) int {
 	if p.outputIsTerminal() && previousLines > 0 {
 		_, _ = fmt.Fprintf(p.output, "\x1b[%dA\x1b[J", previousLines)
 	}
-	_, _ = fmt.Fprint(p.output, block)
+	if p.outputIsTerminal() {
+		_, _ = fmt.Fprint(p.output, terminalNewlines(block))
+	} else {
+		_, _ = fmt.Fprint(p.output, block)
+	}
 	return visualLineCount(block, p.outputColumns())
 }
 
@@ -412,6 +416,14 @@ func visualLineCount(value string, columns int) int {
 
 func stripANSI(value string) string {
 	return ansiEscapePattern.ReplaceAllString(value, "")
+}
+
+func terminalNewlines(value string) string {
+	// term.MakeRaw disables the terminal's automatic LF -> CRLF output
+	// processing. Without explicit carriage returns, each rendered prompt line
+	// starts wherever the previous line ended, producing a diagonal layout.
+	value = strings.ReplaceAll(value, "\r\n", "\n")
+	return strings.ReplaceAll(value, "\n", "\r\n")
 }
 
 func approximateDisplayWidth(value string) int {
