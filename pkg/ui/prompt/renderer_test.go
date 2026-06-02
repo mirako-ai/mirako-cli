@@ -45,7 +45,7 @@ func TestRendererRenderInputAndSubmitted(t *testing.T) {
 	}
 
 	submitted := renderer.RenderSubmitted("Interactive model", "metis-2.5")
-	for _, want := range []string{"◇ Interactive model", "│  metis-2.5"} {
+	for _, want := range []string{"◇ Interactive model", "│  metis-2.5", "│ \n"} {
 		if !strings.Contains(submitted, want) {
 			t.Fatalf("RenderSubmitted() missing %q in output:\n%s", want, submitted)
 		}

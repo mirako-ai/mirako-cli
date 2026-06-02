@@ -96,6 +96,7 @@ func (r Renderer) RenderSubmitted(label string, value string) string {
 	if value != "" {
 		fmt.Fprintf(&b, "%s  %s\n", theme.Muted(theme.Symbols.Bar), theme.Primary(value))
 	}
+	fmt.Fprintf(&b, "%s \n", theme.Muted(theme.Symbols.Bar))
 	return b.String()
 }
 
