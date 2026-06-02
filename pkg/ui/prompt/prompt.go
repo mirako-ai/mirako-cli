@@ -157,15 +157,16 @@ func (p *Prompter) Select(label string, options []SelectOption, defaultValue str
 // Input shows a text prompt with optional default and required validation.
 func (p *Prompter) Input(label string, defaultValue string, required bool) (string, error) {
 	for {
-		if _, err := fmt.Fprint(p.output, p.renderer.RenderInput(label, defaultValue)); err != nil {
+		activeBlock := p.renderer.RenderInput(label, defaultValue)
+		if _, err := fmt.Fprint(p.output, activeBlock); err != nil {
 			return "", err
 		}
 
-		answer, err := p.readLine()
-		if err != nil && !(errors.Is(err, io.EOF) && answer != "") {
+		visibleAnswer, err := p.readLine()
+		if err != nil && !(errors.Is(err, io.EOF) && visibleAnswer != "") {
 			return "", err
 		}
-		answer = strings.TrimSpace(answer)
+		answer := strings.TrimSpace(visibleAnswer)
 		if answer == "" && defaultValue != "" {
 			answer = defaultValue
 		}
@@ -176,9 +177,7 @@ func (p *Prompter) Input(label string, defaultValue string, required bool) (stri
 			continue
 		}
 
-		if _, err := fmt.Fprint(p.output, p.renderer.RenderSubmitted(label, answer)); err != nil {
-			return "", err
-		}
+		p.replaceActiveInput(activeBlock, visibleAnswer, p.renderer.RenderSubmitted(label, answer))
 		return answer, nil
 	}
 }
@@ -186,7 +185,8 @@ func (p *Prompter) Input(label string, defaultValue string, required bool) (stri
 // Password shows a secret input prompt. Submitted output never includes the
 // secret value.
 func (p *Prompter) Password(label string) (string, error) {
-	if _, err := fmt.Fprint(p.output, p.renderer.RenderInput(label, "")); err != nil {
+	activeBlock := p.renderer.RenderInput(label, "")
+	if _, err := fmt.Fprint(p.output, activeBlock); err != nil {
 		return "", err
 	}
 
@@ -212,9 +212,7 @@ func (p *Prompter) Password(label string) (string, error) {
 	if answer != "" {
 		displayValue = "configured"
 	}
-	if _, err := fmt.Fprint(p.output, p.renderer.RenderSubmitted(label, displayValue)); err != nil {
-		return "", err
-	}
+	p.replaceActiveInput(activeBlock, "", p.renderer.RenderSubmitted(label, displayValue))
 	return answer, nil
 }
 
@@ -307,6 +305,16 @@ func (p *Prompter) inputIsTerminal() bool {
 
 func (p *Prompter) outputIsTerminal() bool {
 	return p.outputFD >= 0 && term.IsTerminal(p.outputFD)
+}
+
+func (p *Prompter) replaceActiveInput(activeBlock string, visibleAnswer string, submittedBlock string) {
+	if !p.outputIsTerminal() {
+		_, _ = fmt.Fprint(p.output, submittedBlock)
+		return
+	}
+
+	previousLines := visualLineCount(activeBlock+visibleAnswer+"\n", p.outputColumns())
+	p.writeBlock(submittedBlock, previousLines)
 }
 
 func (p *Prompter) writeBlock(block string, previousLines int) int {
