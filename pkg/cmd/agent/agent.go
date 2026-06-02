@@ -183,7 +183,7 @@ func printAgentDetails(agent api.AgentResponse) error {
 	fmt.Printf("Runtime Kind: %s\n", agent.RuntimeKind)
 	fmt.Printf("Custom Agent Bearer Token Configured: %t\n", agent.HasCustomAgentBearerToken)
 
-	if agent.RuntimeKind == customAgentRuntimeKind || agent.CustomAgentUrl != nil || agent.CustomAgentProtocol != nil {
+	if agent.RuntimeKind == customAgentRuntimeKind {
 		fmt.Printf("Custom Agent URL: %s\n", optionalString(agent.CustomAgentUrl))
 		fmt.Printf("Custom Agent Protocol: %s\n", optionalString(agent.CustomAgentProtocol))
 	} else {
@@ -584,7 +584,7 @@ func printAgentCreateSuccess(agent api.AgentResponse) {
 	fmt.Printf("   Model: %s\n", agent.Model)
 	fmt.Printf("   Runtime Kind: %s\n", agent.RuntimeKind)
 	fmt.Printf("   Custom Agent Bearer Token Configured: %t\n", agent.HasCustomAgentBearerToken)
-	if agent.RuntimeKind == customAgentRuntimeKind || agent.CustomAgentUrl != nil || agent.CustomAgentProtocol != nil {
+	if agent.RuntimeKind == customAgentRuntimeKind {
 		fmt.Printf("   Custom Agent URL: %s\n", optionalString(agent.CustomAgentUrl))
 		fmt.Printf("   Custom Agent Protocol: %s\n", optionalString(agent.CustomAgentProtocol))
 	} else {

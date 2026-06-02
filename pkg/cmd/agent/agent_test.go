@@ -30,6 +30,7 @@ const testAgentJSON = `{
   "instruction": "Be helpful",
   "tools": [{"type":"function","name":"search"}],
   "runtime_kind": "managed_agent",
+  "custom_agent_protocol": "vercel_ai_sdk",
   "has_custom_agent_bearer_token": false,
   "created_at": "2026-05-25T00:00:00Z",
   "updated_at": "2026-05-25T00:01:00Z"
@@ -579,8 +580,11 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runView() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") || !strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
-			t.Fatalf("expected view output to contain agent details, got %q", output)
+		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") || !strings.Contains(output, "LLM Model: gemini-2.0-flash") || !strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
+			t.Fatalf("expected view output to contain managed agent details, got %q", output)
+		}
+		if strings.Contains(output, "Custom Agent URL:") {
+			t.Fatalf("managed agent view should not show custom-agent endpoint fields, got %q", output)
 		}
 	})
 
@@ -674,8 +678,11 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCreate() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "Runtime Kind: managed_agent") {
-			t.Fatalf("expected create output to contain success details, got %q", output)
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "Runtime Kind: managed_agent") || !strings.Contains(output, "LLM Model: gemini-2.0-flash") {
+			t.Fatalf("expected create output to contain managed success details, got %q", output)
+		}
+		if strings.Contains(output, "Custom Agent URL:") {
+			t.Fatalf("managed agent create output should not show custom-agent endpoint fields, got %q", output)
 		}
 	})
 
