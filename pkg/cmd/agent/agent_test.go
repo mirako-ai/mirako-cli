@@ -34,7 +34,42 @@ const testAgentJSON = `{
   "updated_at": "2026-05-25T00:01:00Z"
 }`
 
+const testCustomAgentJSON = `{
+  "id": "custom-agent-1",
+  "user_id": "user-1",
+  "name": "Custom Agent",
+  "description": "Custom endpoint agent",
+  "avatar_id": "avatar-1",
+  "voice_profile_id": "voice-1",
+  "model": "metis-2.5",
+  "runtime_kind": "custom_agent",
+  "custom_agent_url": "https://agent.example.test/api/chat",
+  "custom_agent_protocol": "vercel_ai_sdk",
+  "has_custom_agent_bearer_token": true,
+  "created_at": "2026-05-25T00:00:00Z",
+  "updated_at": "2026-05-25T00:01:00Z"
+}`
+
+const testCustomAgentWithSecretJSON = `{
+  "id": "custom-agent-1",
+  "user_id": "user-1",
+  "name": "Custom Agent",
+  "description": "Custom endpoint agent",
+  "avatar_id": "avatar-1",
+  "voice_profile_id": "voice-1",
+  "model": "metis-2.5",
+  "runtime_kind": "custom_agent",
+  "custom_agent_url": "https://agent.example.test/api/chat",
+  "custom_agent_protocol": "vercel_ai_sdk",
+  "custom_agent_bearer_token": "super-secret-token",
+  "has_custom_agent_bearer_token": true,
+  "created_at": "2026-05-25T00:00:00Z",
+  "updated_at": "2026-05-25T00:01:00Z"
+}`
+
 func TestRunCreateValidation(t *testing.T) {
+	forceNonInteractive(t)
+
 	tests := []struct {
 		name          string
 		flags         map[string]string
@@ -80,6 +115,51 @@ func TestRunCreateValidation(t *testing.T) {
 			},
 			errorContains: "instruction is required",
 		},
+		{
+			name: "invalid runtime kind",
+			flags: map[string]string{
+				"name":         "agent",
+				"avatar":       "avatar-1",
+				"voice":        "voice-1",
+				"runtime-kind": "other",
+			},
+			errorContains: "runtime kind must be one of managed_agent, custom_agent",
+		},
+		{
+			name: "custom missing URL",
+			flags: map[string]string{
+				"name":         "agent",
+				"avatar":       "avatar-1",
+				"voice":        "voice-1",
+				"runtime-kind": "custom_agent",
+			},
+			errorContains: "custom agent URL is required",
+		},
+		{
+			name: "custom invalid protocol",
+			flags: map[string]string{
+				"name":                  "agent",
+				"avatar":                "avatar-1",
+				"voice":                 "voice-1",
+				"runtime-kind":          "custom_agent",
+				"custom-agent-url":      "https://agent.example.test/api/chat",
+				"custom-agent-protocol": "unknown",
+			},
+			errorContains: "custom agent protocol must be one of vercel_ai_sdk",
+		},
+		{
+			name: "custom bearer token conflict",
+			flags: map[string]string{
+				"name":                           "agent",
+				"avatar":                         "avatar-1",
+				"voice":                          "voice-1",
+				"runtime-kind":                   "custom_agent",
+				"custom-agent-url":               "https://agent.example.test/api/chat",
+				"custom-agent-bearer-token":      "token",
+				"custom-agent-bearer-token-file": "token.txt",
+			},
+			errorContains: "use either --custom-agent-bearer-token or --custom-agent-bearer-token-file",
+		},
 	}
 
 	for _, tt := range tests {
@@ -99,6 +179,117 @@ func TestRunCreateValidation(t *testing.T) {
 				t.Fatalf("expected error to contain %q, got %q", tt.errorContains, err.Error())
 			}
 		})
+	}
+}
+
+func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
+	cmd := newCreateCmd()
+	prompter := &fakeAgentPrompter{
+		selects: map[string]string{
+			"Agent type": managedAgentTypeChoice,
+		},
+		inputs: map[string]string{
+			"Agent name":                  "Managed Agent",
+			"Avatar ID":                   "avatar-1",
+			"Voice profile ID":            "voice-1",
+			"Description (optional)":      "Helpful managed agent",
+			"Interactive model":           "metis-2.5",
+			"LLM model":                   "gemini-2.0-flash",
+			"Tools JSON array (optional)": `[{"type":"function","name":"search"}]`,
+		},
+		multilines: map[string]string{
+			"Instruction prompt": "Be helpful",
+		},
+	}
+
+	body, err := buildCreateAgentBody(cmd, prompter, true)
+	if err != nil {
+		t.Fatalf("buildCreateAgentBody() returned error: %v", err)
+	}
+	if len(prompter.calls) == 0 || prompter.calls[0] != "select:Agent type" {
+		t.Fatalf("expected first prompt to ask for agent type, got calls %v", prompter.calls)
+	}
+	if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindManagedAgent {
+		t.Fatalf("runtime kind = %v, want managed_agent", body.RuntimeKind)
+	}
+	if body.Name != "Managed Agent" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" {
+		t.Fatalf("unexpected common fields: %+v", body)
+	}
+	if body.LlmModel == nil || *body.LlmModel != "gemini-2.0-flash" {
+		t.Fatalf("llm model = %v, want gemini-2.0-flash", body.LlmModel)
+	}
+	if body.Instruction == nil || *body.Instruction != "Be helpful" {
+		t.Fatalf("instruction = %v, want Be helpful", body.Instruction)
+	}
+	if body.Tools == nil || len(*body.Tools) != 1 {
+		t.Fatalf("tools = %v, want one tool", body.Tools)
+	}
+}
+
+func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
+	cmd := newCreateCmd()
+	prompter := &fakeAgentPrompter{
+		selects: map[string]string{
+			"Agent type": customAgentTypeChoice,
+		},
+		inputs: map[string]string{
+			"Agent name":        "Custom Agent",
+			"Avatar ID":         "avatar-1",
+			"Voice profile ID":  "voice-1",
+			"Interactive model": "metis-2.5",
+			"Custom agent URL":  "https://agent.example.test/api/chat",
+		},
+		passwords: map[string]string{
+			"Custom agent bearer token (optional)": "super-secret-token",
+		},
+	}
+
+	body, err := buildCreateAgentBody(cmd, prompter, true)
+	if err != nil {
+		t.Fatalf("buildCreateAgentBody() returned error: %v", err)
+	}
+	if len(prompter.calls) == 0 || prompter.calls[0] != "select:Agent type" {
+		t.Fatalf("expected first prompt to ask for agent type, got calls %v", prompter.calls)
+	}
+	if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindCustomAgent {
+		t.Fatalf("runtime kind = %v, want custom_agent", body.RuntimeKind)
+	}
+	if body.CustomAgentUrl == nil || *body.CustomAgentUrl != "https://agent.example.test/api/chat" {
+		t.Fatalf("custom agent URL = %v, want endpoint", body.CustomAgentUrl)
+	}
+	if body.CustomAgentBearerToken == nil || *body.CustomAgentBearerToken != "super-secret-token" {
+		t.Fatalf("custom agent bearer token was not set from hidden prompt")
+	}
+	if body.CustomAgentProtocol == nil || *body.CustomAgentProtocol != api.CreateAgentInputCustomAgentProtocolVercelAiSdk {
+		t.Fatalf("custom agent protocol = %v, want vercel_ai_sdk", body.CustomAgentProtocol)
+	}
+	if body.LlmModel != nil || body.Instruction != nil || body.Tools != nil {
+		t.Fatalf("custom agents must not include managed fields: %+v", body)
+	}
+}
+
+func TestBuildCreateAgentBodyCustomBearerTokenFile(t *testing.T) {
+	tokenFile := filepath.Join(t.TempDir(), "token.txt")
+	if err := os.WriteFile(tokenFile, []byte("file-secret\n"), 0600); err != nil {
+		t.Fatalf("failed to write token file: %v", err)
+	}
+
+	cmd := newCreateCmd()
+	setFlags(t, cmd, map[string]string{
+		"name":                           "Custom Agent",
+		"avatar":                         "avatar-1",
+		"voice":                          "voice-1",
+		"runtime-kind":                   "custom_agent",
+		"custom-agent-url":               "https://agent.example.test/api/chat",
+		"custom-agent-bearer-token-file": tokenFile,
+	})
+
+	body, err := buildCreateAgentBody(cmd, &fakeAgentPrompter{}, false)
+	if err != nil {
+		t.Fatalf("buildCreateAgentBody() returned error: %v", err)
+	}
+	if body.CustomAgentBearerToken == nil || *body.CustomAgentBearerToken != "file-secret" {
+		t.Fatalf("custom agent bearer token = %v, want token from file", body.CustomAgentBearerToken)
 	}
 }
 
@@ -279,13 +470,15 @@ func TestResolveTools(t *testing.T) {
 }
 
 func TestAgentCommandsUseSDKClient(t *testing.T) {
+	forceNonInteractive(t)
+
 	t.Run("list agents", func(t *testing.T) {
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			if !assertRequest(t, r, http.MethodGet, "/v1/agents") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
 				return
 			}
-			writeJSON(w, http.StatusOK, fmt.Sprintf(`{"data":[%s]}`, testAgentJSON))
+			writeJSON(w, http.StatusOK, fmt.Sprintf(`{"data":[%s,%s]}`, testAgentJSON, testCustomAgentJSON))
 		})
 		configureAgentTest(t, server.URL)
 
@@ -295,12 +488,37 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runList() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Agent One") || !strings.Contains(output, "agent-1") {
-			t.Fatalf("expected list output to contain agent details, got %q", output)
+		if !strings.Contains(output, "Agent One") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "custom_agent") || !strings.Contains(output, "true") {
+			t.Fatalf("expected list output to contain agent details and token status, got %q", output)
 		}
 	})
 
-	t.Run("view agent", func(t *testing.T) {
+	t.Run("list agents JSON redacts bearer token", func(t *testing.T) {
+		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assertRequest(t, r, http.MethodGet, "/v1/agents") {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+			writeJSON(w, http.StatusOK, fmt.Sprintf(`{"data":[%s]}`, testCustomAgentWithSecretJSON))
+		})
+		configureAgentTest(t, server.URL)
+
+		cmd := newListCmd()
+		cmd.SetContext(context.Background())
+		if err := cmd.Flags().Set("json", "true"); err != nil {
+			t.Fatalf("failed to set json flag: %v", err)
+		}
+		output, err := captureStdout(t, func() error { return runList(cmd, nil) })
+		if err != nil {
+			t.Fatalf("runList() returned error: %v", err)
+		}
+		assertNoSecret(t, output)
+		if !strings.Contains(output, "has_custom_agent_bearer_token") {
+			t.Fatalf("expected JSON output to include token status, got %q", output)
+		}
+	})
+
+	t.Run("view managed agent", func(t *testing.T) {
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			if !assertRequest(t, r, http.MethodGet, "/v1/agents/agent-1") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
@@ -316,12 +534,37 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runView() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") {
+		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") || !strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
 			t.Fatalf("expected view output to contain agent details, got %q", output)
 		}
 	})
 
-	t.Run("create agent", func(t *testing.T) {
+	t.Run("view custom agent JSON redacts bearer token", func(t *testing.T) {
+		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assertRequest(t, r, http.MethodGet, "/v1/agents/custom-agent-1") {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+			writeJSON(w, http.StatusOK, fmt.Sprintf(`{"data":%s}`, testCustomAgentWithSecretJSON))
+		})
+		configureAgentTest(t, server.URL)
+
+		cmd := newViewCmd()
+		cmd.SetContext(context.Background())
+		if err := cmd.Flags().Set("json", "true"); err != nil {
+			t.Fatalf("failed to set json flag: %v", err)
+		}
+		output, err := captureStdout(t, func() error { return runView(cmd, []string{"custom-agent-1"}) })
+		if err != nil {
+			t.Fatalf("runView() returned error: %v", err)
+		}
+		assertNoSecret(t, output)
+		if !strings.Contains(output, "has_custom_agent_bearer_token") {
+			t.Fatalf("expected JSON output to include token status, got %q", output)
+		}
+	})
+
+	t.Run("create managed agent", func(t *testing.T) {
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			if !assertRequest(t, r, http.MethodPost, "/v1/agents") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
@@ -337,6 +580,11 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			if body.Name != "Agent One" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" || body.LlmModel == nil || *body.LlmModel != "gemini-2.0-flash" {
 				t.Errorf("unexpected create request body: %+v", body)
 				http.Error(w, "unexpected request body", http.StatusBadRequest)
+				return
+			}
+			if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindManagedAgent {
+				t.Errorf("runtime kind = %v, want managed_agent", body.RuntimeKind)
+				http.Error(w, "unexpected runtime kind", http.StatusBadRequest)
 				return
 			}
 			if body.Instruction == nil || *body.Instruction != "Be helpful" {
@@ -381,8 +629,79 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCreate() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") {
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "Runtime Kind: managed_agent") {
 			t.Fatalf("expected create output to contain success details, got %q", output)
+		}
+	})
+
+	t.Run("create custom agent", func(t *testing.T) {
+		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assertRequest(t, r, http.MethodPost, "/v1/agents") {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("failed to read request body: %v", err)
+				http.Error(w, "invalid request body", http.StatusBadRequest)
+				return
+			}
+			var raw map[string]any
+			if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+				t.Errorf("failed to decode request body: %v", err)
+				http.Error(w, "invalid request body", http.StatusBadRequest)
+				return
+			}
+			if raw["name"] != "Custom Agent" || raw["avatar_id"] != "avatar-1" || raw["voice_profile_id"] != "voice-1" {
+				t.Errorf("unexpected custom create request body: %s", string(bodyBytes))
+				http.Error(w, "unexpected request body", http.StatusBadRequest)
+				return
+			}
+			if raw["runtime_kind"] != customAgentRuntimeKind || raw["custom_agent_url"] != "https://agent.example.test/api/chat" || raw["custom_agent_protocol"] != customAgentProtocolVercelAISDK {
+				t.Errorf("unexpected custom runtime fields: %s", string(bodyBytes))
+				http.Error(w, "unexpected runtime fields", http.StatusBadRequest)
+				return
+			}
+			if raw["custom_agent_bearer_token"] != "super-secret-token" {
+				t.Errorf("custom_agent_bearer_token = %v, want request token", raw["custom_agent_bearer_token"])
+				http.Error(w, "unexpected token", http.StatusBadRequest)
+				return
+			}
+			for _, managedField := range []string{"llm_model", "instruction", "tools"} {
+				if _, ok := raw[managedField]; ok {
+					t.Errorf("custom create request included managed field %s: %s", managedField, string(bodyBytes))
+					http.Error(w, "managed field present", http.StatusBadRequest)
+					return
+				}
+			}
+
+			writeJSON(w, http.StatusCreated, fmt.Sprintf(`{"data":%s}`, testCustomAgentWithSecretJSON))
+		})
+		configureAgentTest(t, server.URL)
+
+		cmd := newCreateCmd()
+		cmd.SetContext(context.Background())
+		setFlags(t, cmd, map[string]string{
+			"name":                      "Custom Agent",
+			"description":               "Custom endpoint agent",
+			"avatar":                    "avatar-1",
+			"voice":                     "voice-1",
+			"runtime-kind":              "custom_agent",
+			"custom-agent-url":          "https://agent.example.test/api/chat",
+			"custom-agent-bearer-token": "super-secret-token",
+			"llm-model":                 "should-not-send",
+			"instruction":               "Do not send",
+			"tools":                     `[{"name":"do-not-send"}]`,
+		})
+
+		output, err := captureStdout(t, func() error { return runCreate(cmd, nil) })
+		if err != nil {
+			t.Fatalf("runCreate() returned error: %v", err)
+		}
+		assertNoSecret(t, output)
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "custom-agent-1") || !strings.Contains(output, "Custom Agent Bearer Token Configured: true") {
+			t.Fatalf("expected custom create output to contain success details and token status, got %q", output)
 		}
 	})
 
@@ -467,6 +786,20 @@ func setFlags(t *testing.T, cmd *cobra.Command, flags map[string]string) {
 	}
 }
 
+func forceNonInteractive(t *testing.T) {
+	t.Helper()
+	old := stdinIsTTY
+	stdinIsTTY = func() bool { return false }
+	t.Cleanup(func() { stdinIsTTY = old })
+}
+
+func assertNoSecret(t *testing.T, output string) {
+	t.Helper()
+	if strings.Contains(output, "super-secret-token") {
+		t.Fatalf("output leaked bearer token: %q", output)
+	}
+}
+
 func captureStdout(t *testing.T, fn func() error) (string, error) {
 	t.Helper()
 
@@ -491,4 +824,52 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 		t.Fatalf("failed to read stdout pipe: %v", err)
 	}
 	return string(output), fnErr
+}
+
+type fakeAgentPrompter struct {
+	selects    map[string]string
+	inputs     map[string]string
+	multilines map[string]string
+	passwords  map[string]string
+	calls      []string
+}
+
+func (p *fakeAgentPrompter) Select(message string, options []string, defaultValue string) (string, error) {
+	p.calls = append(p.calls, "select:"+message)
+	if p.selects != nil {
+		if answer, ok := p.selects[message]; ok {
+			return answer, nil
+		}
+	}
+	return defaultValue, nil
+}
+
+func (p *fakeAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
+	p.calls = append(p.calls, "input:"+message)
+	if p.inputs != nil {
+		if answer, ok := p.inputs[message]; ok {
+			return answer, nil
+		}
+	}
+	return defaultValue, nil
+}
+
+func (p *fakeAgentPrompter) Multiline(message string, defaultValue string, required bool) (string, error) {
+	p.calls = append(p.calls, "multiline:"+message)
+	if p.multilines != nil {
+		if answer, ok := p.multilines[message]; ok {
+			return answer, nil
+		}
+	}
+	return defaultValue, nil
+}
+
+func (p *fakeAgentPrompter) Password(message string) (string, error) {
+	p.calls = append(p.calls, "password:"+message)
+	if p.passwords != nil {
+		if answer, ok := p.passwords[message]; ok {
+			return answer, nil
+		}
+	}
+	return "", nil
 }
