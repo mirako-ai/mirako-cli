@@ -75,7 +75,7 @@ func runList(cmd *cobra.Command, args []string) error {
 			agent.AvatarId,
 			agent.VoiceProfileId,
 			agent.Model,
-			agent.LlmModel,
+			optionalString(agent.LlmModel),
 			ui.FormatTimestamp(agent.UpdatedAt),
 		})
 	}
@@ -135,10 +135,11 @@ func runView(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Avatar ID: %s\n", agent.AvatarId)
 	fmt.Printf("Voice Profile ID: %s\n", agent.VoiceProfileId)
 	fmt.Printf("Model: %s\n", agent.Model)
-	fmt.Printf("LLM Model: %s\n", agent.LlmModel)
+	fmt.Printf("Runtime Kind: %s\n", agent.RuntimeKind)
+	fmt.Printf("LLM Model: %s\n", optionalString(agent.LlmModel))
 	fmt.Printf("Created: %s\n", ui.FormatTimestamp(agent.CreatedAt))
 	fmt.Printf("Updated: %s\n", ui.FormatTimestamp(agent.UpdatedAt))
-	fmt.Printf("\nInstruction:\n%s\n", agent.Instruction)
+	fmt.Printf("\nInstruction:\n%s\n", optionalString(agent.Instruction))
 	fmt.Printf("\nTools:\n%s\n", string(toolsJSON))
 
 	return nil
@@ -207,8 +208,8 @@ func runCreate(cmd *cobra.Command, args []string) error {
 		Name:           name,
 		AvatarId:       avatarID,
 		VoiceProfileId: voiceID,
-		LlmModel:       llmModel,
-		Instruction:    instruction,
+		LlmModel:       &llmModel,
+		Instruction:    &instruction,
 		Tools:          &tools,
 	}
 	if description != "" {
@@ -245,7 +246,8 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	fmt.Printf("   Avatar ID: %s\n", agent.AvatarId)
 	fmt.Printf("   Voice Profile ID: %s\n", agent.VoiceProfileId)
 	fmt.Printf("   Model: %s\n", agent.Model)
-	fmt.Printf("   LLM Model: %s\n", agent.LlmModel)
+	fmt.Printf("   Runtime Kind: %s\n", agent.RuntimeKind)
+	fmt.Printf("   LLM Model: %s\n", optionalString(agent.LlmModel))
 
 	return nil
 }
@@ -351,6 +353,13 @@ func newClient(cmd *cobra.Command) (*client.Client, error) {
 		return nil, fmt.Errorf("failed to create client: %w", err)
 	}
 	return c, nil
+}
+
+func optionalString(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
 }
 
 func formatAPIError(err error, fallback string) error {

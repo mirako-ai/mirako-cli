@@ -28,6 +28,8 @@ const testAgentJSON = `{
   "llm_model": "gemini-2.0-flash",
   "instruction": "Be helpful",
   "tools": [{"type":"function","name":"search"}],
+  "runtime_kind": "managed_agent",
+  "has_custom_agent_bearer_token": false,
   "created_at": "2026-05-25T00:00:00Z",
   "updated_at": "2026-05-25T00:01:00Z"
 }`
@@ -332,9 +334,14 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 				http.Error(w, "invalid request body", http.StatusBadRequest)
 				return
 			}
-			if body.Name != "Agent One" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" || body.LlmModel != "gemini-2.0-flash" {
+			if body.Name != "Agent One" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" || body.LlmModel == nil || *body.LlmModel != "gemini-2.0-flash" {
 				t.Errorf("unexpected create request body: %+v", body)
 				http.Error(w, "unexpected request body", http.StatusBadRequest)
+				return
+			}
+			if body.Instruction == nil || *body.Instruction != "Be helpful" {
+				t.Errorf("instruction = %v, want Be helpful", body.Instruction)
+				http.Error(w, "unexpected instruction", http.StatusBadRequest)
 				return
 			}
 			if body.Description == nil || *body.Description != "Helpful agent" {
