@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -33,6 +34,7 @@ type Prompter struct {
 	inputFD    int
 	outputFD   int
 	renderer   Renderer
+	columns    int
 	passwordFn func(fd int) ([]byte, error)
 }
 
@@ -86,6 +88,15 @@ func WithIO(input io.Reader, output io.Writer) Option {
 	return func(p *Prompter) {
 		WithInput(input)(p)
 		WithOutput(output)(p)
+	}
+}
+
+// WithColumns overrides terminal width for wrapped-row calculations. It is
+// primarily useful for tests and prompt harnesses that render to non-file
+// writers.
+func WithColumns(columns int) Option {
+	return func(p *Prompter) {
+		p.columns = columns
 	}
 }
 
@@ -303,7 +314,7 @@ func (p *Prompter) writeBlock(block string, previousLines int) int {
 		_, _ = fmt.Fprintf(p.output, "\x1b[%dA\x1b[J", previousLines)
 	}
 	_, _ = fmt.Fprint(p.output, block)
-	return lineCount(block)
+	return visualLineCount(block, p.outputColumns())
 }
 
 func (p *Prompter) readKey() (key, error) {
@@ -363,15 +374,106 @@ func (p *Prompter) readLine() (string, error) {
 	return line, err
 }
 
-func lineCount(value string) int {
+func (p *Prompter) outputColumns() int {
+	if p.columns > 0 {
+		return p.columns
+	}
+	if p.outputFD >= 0 {
+		columns, _, err := term.GetSize(p.outputFD)
+		if err == nil && columns > 0 {
+			return columns
+		}
+	}
+	return 80
+}
+
+var ansiEscapePattern = regexp.MustCompile(`\x1b\[[0-9;?]*[ -/]*[@-~]`)
+
+func visualLineCount(value string, columns int) int {
 	if value == "" {
 		return 0
 	}
-	lines := strings.Count(value, "\n")
-	if !strings.HasSuffix(value, "\n") {
-		lines++
+	if columns <= 0 {
+		columns = 80
 	}
-	return lines
+
+	logicalLines := strings.Split(strings.TrimSuffix(value, "\n"), "\n")
+	rows := 0
+	for _, line := range logicalLines {
+		width := approximateDisplayWidth(stripANSI(line))
+		lineRows := (width + columns - 1) / columns
+		if lineRows < 1 {
+			lineRows = 1
+		}
+		rows += lineRows
+	}
+	return rows
+}
+
+func stripANSI(value string) string {
+	return ansiEscapePattern.ReplaceAllString(value, "")
+}
+
+func approximateDisplayWidth(value string) int {
+	width := 0
+	for _, r := range value {
+		if r == 0 {
+			continue
+		}
+		if isWideRune(r) {
+			width += 2
+		} else {
+			width++
+		}
+	}
+	return width
+}
+
+func isWideRune(r rune) bool {
+	return (r >= 0x1100 && r <= 0x115f) ||
+		(r >= 0x231a && r <= 0x231b) ||
+		(r >= 0x2329 && r <= 0x232a) ||
+		(r >= 0x23e9 && r <= 0x23ec) ||
+		r == 0x23f0 ||
+		r == 0x23f3 ||
+		(r >= 0x25fd && r <= 0x25fe) ||
+		(r >= 0x2614 && r <= 0x2615) ||
+		(r >= 0x2648 && r <= 0x2653) ||
+		r == 0x267f ||
+		r == 0x2693 ||
+		r == 0x26a1 ||
+		(r >= 0x26aa && r <= 0x26ab) ||
+		(r >= 0x26bd && r <= 0x26be) ||
+		(r >= 0x26c4 && r <= 0x26c5) ||
+		r == 0x26ce ||
+		r == 0x26d4 ||
+		r == 0x26ea ||
+		(r >= 0x26f2 && r <= 0x26f3) ||
+		r == 0x26f5 ||
+		r == 0x26fa ||
+		r == 0x26fd ||
+		r == 0x2705 ||
+		(r >= 0x270a && r <= 0x270b) ||
+		r == 0x2728 ||
+		r == 0x274c ||
+		r == 0x274e ||
+		(r >= 0x2753 && r <= 0x2755) ||
+		r == 0x2757 ||
+		(r >= 0x2795 && r <= 0x2797) ||
+		r == 0x27b0 ||
+		r == 0x27bf ||
+		(r >= 0x2b1b && r <= 0x2b1c) ||
+		r == 0x2b50 ||
+		r == 0x2b55 ||
+		(r >= 0x2e80 && r <= 0xa4cf && r != 0x303f) ||
+		(r >= 0xa960 && r <= 0xa97c) ||
+		(r >= 0xac00 && r <= 0xd7a3) ||
+		(r >= 0xf900 && r <= 0xfaff) ||
+		(r >= 0xfe10 && r <= 0xfe19) ||
+		(r >= 0xfe30 && r <= 0xfe6f) ||
+		(r >= 0xff00 && r <= 0xff60) ||
+		(r >= 0xffe0 && r <= 0xffe6) ||
+		(r >= 0x1f000 && r <= 0x1f9ff)
 }
 
 func fileDescriptor(reader io.Reader) int {

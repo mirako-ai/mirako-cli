@@ -25,6 +25,15 @@ func TestPrompterSelectReturnsOptionValue(t *testing.T) {
 	}
 }
 
+func TestVisualLineCountAccountsForSoftWrappedRows(t *testing.T) {
+	block := "\x1b[32m◆\x1b[0m Agent type\n│     provide prompt, model/tools and host runtime on Mirako\n"
+
+	got := visualLineCount(block, 20)
+	if got <= 2 {
+		t.Fatalf("visualLineCount() = %d, want more than logical line count for wrapped text", got)
+	}
+}
+
 func TestPrompterPasswordDoesNotPrintSecret(t *testing.T) {
 	var output bytes.Buffer
 	prompter := NewPrompter(

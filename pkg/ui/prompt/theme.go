@@ -13,6 +13,7 @@ type Symbols struct {
 	CancelledStep string
 	Bar           string
 	Horizontal    string
+	Corner        string
 	Pointer       string
 	ActiveRadio   string
 	InactiveRadio string
@@ -27,6 +28,7 @@ func DefaultSymbols() Symbols {
 		CancelledStep: "■",
 		Bar:           "│",
 		Horizontal:    "─",
+		Corner:        "└",
 		Pointer:       "❯",
 		ActiveRadio:   "●",
 		InactiveRadio: "○",
@@ -57,8 +59,36 @@ func PlainTheme() Theme {
 }
 
 func (t Theme) withDefaults() Theme {
+	defaults := DefaultSymbols()
 	if t.Symbols.ActiveStep == "" {
-		t.Symbols = DefaultSymbols()
+		t.Symbols.ActiveStep = defaults.ActiveStep
+	}
+	if t.Symbols.SubmittedStep == "" {
+		t.Symbols.SubmittedStep = defaults.SubmittedStep
+	}
+	if t.Symbols.CancelledStep == "" {
+		t.Symbols.CancelledStep = defaults.CancelledStep
+	}
+	if t.Symbols.Bar == "" {
+		t.Symbols.Bar = defaults.Bar
+	}
+	if t.Symbols.Horizontal == "" {
+		t.Symbols.Horizontal = defaults.Horizontal
+	}
+	if t.Symbols.Corner == "" {
+		t.Symbols.Corner = defaults.Corner
+	}
+	if t.Symbols.Pointer == "" {
+		t.Symbols.Pointer = defaults.Pointer
+	}
+	if t.Symbols.ActiveRadio == "" {
+		t.Symbols.ActiveRadio = defaults.ActiveRadio
+	}
+	if t.Symbols.InactiveRadio == "" {
+		t.Symbols.InactiveRadio = defaults.InactiveRadio
+	}
+	if t.Symbols.Bullet == "" {
+		t.Symbols.Bullet = defaults.Bullet
 	}
 	return t
 }

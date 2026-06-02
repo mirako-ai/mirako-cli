@@ -22,11 +22,12 @@ func TestRendererRenderSelectShowsDescriptionsAndSymbols(t *testing.T) {
 
 	for _, want := range []string{
 		"◆ Agent type",
-		"│    ○ managed agent",
-		"│      provide prompt, model/tools and host runtime on Mirako",
-		"│  ❯ ● custom agent",
-		"│      integrate your existing agent endpoint",
-		"❯ Use ↑/↓ to choose, Enter to submit",
+		"│   ○ managed agent",
+		"│     provide prompt, model/tools and host runtime on Mirako",
+		"│ ❯ ● custom agent",
+		"│     integrate your existing agent endpoint",
+		"│  Use ↑/↓ to choose, Enter to submit",
+		"└",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("RenderSelect() missing %q in output:\n%s", want, output)

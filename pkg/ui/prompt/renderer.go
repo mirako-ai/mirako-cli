@@ -65,13 +65,14 @@ func (r Renderer) RenderSelect(label string, options []SelectOption, selectedInd
 			labelStyle = theme.Bold
 		}
 
-		fmt.Fprintf(&b, "%s  %s %s %s\n", theme.Muted(theme.Symbols.Bar), theme.Accent(pointer), radio, labelStyle(option.displayLabel()))
+		fmt.Fprintf(&b, "%s %s %s %s\n", theme.Muted(theme.Symbols.Bar), theme.Accent(pointer), radio, labelStyle(option.displayLabel()))
 		if text := option.supportingText(); text != "" {
-			fmt.Fprintf(&b, "%s      %s\n", theme.Muted(theme.Symbols.Bar), theme.Muted(text))
+			fmt.Fprintf(&b, "%s     %s\n", theme.Muted(theme.Symbols.Bar), theme.Muted(text))
 		}
 	}
 	fmt.Fprintf(&b, "%s\n", theme.Muted(theme.Symbols.Bar))
-	fmt.Fprintf(&b, "%s %s\n", theme.Accent(theme.Symbols.Pointer), theme.Muted("Use ↑/↓ to choose, Enter to submit"))
+	fmt.Fprintf(&b, "%s  %s\n", theme.Muted(theme.Symbols.Bar), theme.Muted("Use ↑/↓ to choose, Enter to submit"))
+	fmt.Fprintf(&b, "%s\n", theme.Muted(theme.Symbols.Corner))
 	return b.String()
 }
 
