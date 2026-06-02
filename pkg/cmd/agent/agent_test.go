@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	promptui "github.com/mirako-ai/mirako-cli/pkg/ui/prompt"
 	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -186,7 +187,7 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 	cmd := newCreateCmd()
 	prompter := &fakeAgentPrompter{
 		selects: map[string]string{
-			"Agent type": managedAgentTypeChoice,
+			"Agent type": managedAgentRuntimeKind,
 		},
 		inputs: map[string]string{
 			"Agent name":                  "Managed Agent",
@@ -230,7 +231,7 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 	cmd := newCreateCmd()
 	prompter := &fakeAgentPrompter{
 		selects: map[string]string{
-			"Agent type": customAgentTypeChoice,
+			"Agent type": customAgentRuntimeKind,
 		},
 		inputs: map[string]string{
 			"Agent name":        "Custom Agent",
@@ -265,6 +266,50 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 	}
 	if body.LlmModel != nil || body.Instruction != nil || body.Tools != nil {
 		t.Fatalf("custom agents must not include managed fields: %+v", body)
+	}
+}
+
+func TestAgentTypePromptOptionsIncludeDescriptionsAndRuntimeValues(t *testing.T) {
+	options := agentTypePromptOptions()
+	if len(options) != 2 {
+		t.Fatalf("agentTypePromptOptions() length = %d, want 2", len(options))
+	}
+
+	tests := []struct {
+		index       int
+		wantLabel   string
+		wantDesc    string
+		wantValue   string
+		wantRuntime api.CreateAgentInputRuntimeKind
+	}{
+		{
+			index:       0,
+			wantLabel:   "managed agent",
+			wantDesc:    "provide prompt, model/tools and host runtime on Mirako",
+			wantValue:   managedAgentRuntimeKind,
+			wantRuntime: api.CreateAgentInputRuntimeKindManagedAgent,
+		},
+		{
+			index:       1,
+			wantLabel:   "custom agent",
+			wantDesc:    "integrate your existing agent endpoint",
+			wantValue:   customAgentRuntimeKind,
+			wantRuntime: api.CreateAgentInputRuntimeKindCustomAgent,
+		},
+	}
+
+	for _, tt := range tests {
+		option := options[tt.index]
+		if option.Label != tt.wantLabel || option.Description != tt.wantDesc || option.Value != tt.wantValue {
+			t.Fatalf("option %d = %+v, want label=%q description=%q value=%q", tt.index, option, tt.wantLabel, tt.wantDesc, tt.wantValue)
+		}
+		got, err := runtimeKindFromChoice(option.Value)
+		if err != nil {
+			t.Fatalf("runtimeKindFromChoice(%q) returned error: %v", option.Value, err)
+		}
+		if got != tt.wantRuntime {
+			t.Fatalf("runtimeKindFromChoice(%q) = %q, want %q", option.Value, got, tt.wantRuntime)
+		}
 	}
 }
 
@@ -827,15 +872,20 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 }
 
 type fakeAgentPrompter struct {
-	selects    map[string]string
-	inputs     map[string]string
-	multilines map[string]string
-	passwords  map[string]string
-	calls      []string
+	selects       map[string]string
+	selectOptions map[string][]promptui.SelectOption
+	inputs        map[string]string
+	multilines    map[string]string
+	passwords     map[string]string
+	calls         []string
 }
 
-func (p *fakeAgentPrompter) Select(message string, options []string, defaultValue string) (string, error) {
+func (p *fakeAgentPrompter) Select(message string, options []promptui.SelectOption, defaultValue string) (string, error) {
 	p.calls = append(p.calls, "select:"+message)
+	if p.selectOptions == nil {
+		p.selectOptions = map[string][]promptui.SelectOption{}
+	}
+	p.selectOptions[message] = append([]promptui.SelectOption(nil), options...)
 	if p.selects != nil {
 		if answer, ok := p.selects[message]; ok {
 			return answer, nil

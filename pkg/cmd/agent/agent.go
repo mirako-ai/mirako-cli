@@ -13,6 +13,7 @@ import (
 	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
+	promptui "github.com/mirako-ai/mirako-cli/pkg/ui/prompt"
 	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -23,65 +24,49 @@ const (
 	customAgentRuntimeKind         = string(api.CreateAgentInputRuntimeKindCustomAgent)
 	customAgentProtocolVercelAISDK = string(api.CreateAgentInputCustomAgentProtocolVercelAiSdk)
 
-	managedAgentTypeChoice = "managed agent - provide prompt, model/tools and host runtime on Mirako"
-	customAgentTypeChoice  = "custom agent - integrate your existing agent endpoint"
+	managedAgentTypeLabel       = "managed agent"
+	managedAgentTypeDescription = "provide prompt, model/tools and host runtime on Mirako"
+	customAgentTypeLabel        = "custom agent"
+	customAgentTypeDescription  = "integrate your existing agent endpoint"
 )
 
 type agentPrompter interface {
-	Select(message string, options []string, defaultValue string) (string, error)
+	Select(message string, options []promptui.SelectOption, defaultValue string) (string, error)
 	Input(message string, defaultValue string, required bool) (string, error)
 	Multiline(message string, defaultValue string, required bool) (string, error)
 	Password(message string) (string, error)
 }
 
-type surveyAgentPrompter struct{}
+type promptAgentPrompter struct {
+	prompter *promptui.Prompter
+}
 
 var (
-	defaultAgentPrompter agentPrompter = surveyAgentPrompter{}
+	defaultAgentPrompter agentPrompter = promptAgentPrompter{prompter: promptui.NewPrompter()}
 	stdinIsTTY                         = func() bool { return term.IsTerminal(int(os.Stdin.Fd())) }
 )
 
-func (surveyAgentPrompter) Select(message string, options []string, defaultValue string) (string, error) {
-	var answer string
-	prompt := &survey.Select{Message: message, Options: options, Default: defaultValue}
-	if err := survey.AskOne(prompt, &answer); err != nil {
-		return "", err
-	}
-	return answer, nil
+func (p promptAgentPrompter) Select(message string, options []promptui.SelectOption, defaultValue string) (string, error) {
+	return p.prompts().Select(message, options, defaultValue)
 }
 
-func (surveyAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
-	var answer string
-	prompt := &survey.Input{Message: message, Default: defaultValue}
-	if err := survey.AskOne(prompt, &answer, surveyValidators(required)...); err != nil {
-		return "", err
-	}
-	return answer, nil
+func (p promptAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
+	return p.prompts().Input(message, defaultValue, required)
 }
 
-func (surveyAgentPrompter) Multiline(message string, defaultValue string, required bool) (string, error) {
-	var answer string
-	prompt := &survey.Multiline{Message: message, Default: defaultValue}
-	if err := survey.AskOne(prompt, &answer, surveyValidators(required)...); err != nil {
-		return "", err
-	}
-	return answer, nil
+func (p promptAgentPrompter) Multiline(message string, defaultValue string, required bool) (string, error) {
+	return p.prompts().Multiline(message, defaultValue, required)
 }
 
-func (surveyAgentPrompter) Password(message string) (string, error) {
-	var answer string
-	prompt := &survey.Password{Message: message}
-	if err := survey.AskOne(prompt, &answer); err != nil {
-		return "", err
-	}
-	return answer, nil
+func (p promptAgentPrompter) Password(message string) (string, error) {
+	return p.prompts().Password(message)
 }
 
-func surveyValidators(required bool) []survey.AskOpt {
-	if !required {
-		return nil
+func (p promptAgentPrompter) prompts() *promptui.Prompter {
+	if p.prompter != nil {
+		return p.prompter
 	}
-	return []survey.AskOpt{survey.WithValidator(survey.Required)}
+	return promptui.NewPrompter()
 }
 
 func NewAgentCmd() *cobra.Command {
@@ -442,11 +427,11 @@ func resolveRuntimeKind(cmd *cobra.Command, prompter agentPrompter, prompt bool)
 	}
 
 	if prompt {
-		defaultChoice := managedAgentTypeChoice
+		defaultChoice := managedAgentRuntimeKind
 		if hasCustomAgentFlagValues(cmd) {
-			defaultChoice = customAgentTypeChoice
+			defaultChoice = customAgentRuntimeKind
 		}
-		choice, err := prompter.Select("Agent type", []string{managedAgentTypeChoice, customAgentTypeChoice}, defaultChoice)
+		choice, err := prompter.Select("Agent type", agentTypePromptOptions(), defaultChoice)
 		if err != nil {
 			return "", fmt.Errorf("error getting agent type: %w", err)
 		}
@@ -470,17 +455,29 @@ func parseRuntimeKind(value string) (api.CreateAgentInputRuntimeKind, error) {
 	}
 }
 
-func runtimeKindFromChoice(choice string) (api.CreateAgentInputRuntimeKind, error) {
-	switch choice {
-	case managedAgentTypeChoice:
-		return api.CreateAgentInputRuntimeKindManagedAgent, nil
-	case customAgentTypeChoice:
-		return api.CreateAgentInputRuntimeKindCustomAgent, nil
-	case managedAgentRuntimeKind, customAgentRuntimeKind:
-		return parseRuntimeKind(choice)
-	default:
-		return "", fmt.Errorf("unsupported agent type %q", choice)
+func agentTypePromptOptions() []promptui.SelectOption {
+	return []promptui.SelectOption{
+		{
+			Label:       managedAgentTypeLabel,
+			Description: managedAgentTypeDescription,
+			Value:       managedAgentRuntimeKind,
+		},
+		{
+			Label:       customAgentTypeLabel,
+			Description: customAgentTypeDescription,
+			Value:       customAgentRuntimeKind,
+		},
 	}
+}
+
+func runtimeKindFromChoice(choice string) (api.CreateAgentInputRuntimeKind, error) {
+	choice = strings.TrimSpace(choice)
+	for _, option := range agentTypePromptOptions() {
+		if choice == option.Value || choice == option.Label || choice == fmt.Sprintf("%s - %s", option.Label, option.Description) {
+			return parseRuntimeKind(option.Value)
+		}
+	}
+	return "", fmt.Errorf("unsupported agent type %q", choice)
 }
 
 func parseCustomAgentProtocol(value string) (api.CreateAgentInputCustomAgentProtocol, error) {
