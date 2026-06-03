@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -1106,10 +1107,16 @@ func assertContainsInOrder(t *testing.T, output string, parts ...string) {
 
 func assertFieldOnSeparateLines(t *testing.T, output, label, value string) {
 	t.Helper()
-	want := fmt.Sprintf("%s\n   %s", label, value)
-	if !strings.Contains(output, want) {
-		t.Fatalf("expected output to contain field %q and value %q on separate lines; got %q", label, value, output)
+	normalized := stripANSI(output)
+	want := fmt.Sprintf("◆ %s\n  %s", label, value)
+	if !strings.Contains(normalized, want) {
+		t.Fatalf("expected output to contain marker field %q and value %q on separate lines; got %q", label, value, output)
 	}
+}
+
+func stripANSI(output string) string {
+	ansiPattern := regexp.MustCompile(`\x1b\[[0-9;]*m`)
+	return ansiPattern.ReplaceAllString(output, "")
 }
 
 func assertNoGuidedLine(t *testing.T, output string) {

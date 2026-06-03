@@ -212,15 +212,15 @@ func printAgentDetails(agent api.AgentResponse) error {
 }
 
 func printViewField(label, value string) {
-	fmt.Println(label)
-	fmt.Printf("   %s\n\n", formatViewValue(value))
+	fmt.Printf("◆ %s\n", promptui.DefaultTheme().Bold(label))
+	fmt.Printf("  %s\n\n", formatViewValue(value))
 }
 
 func formatViewValue(value string) string {
 	if value == "" {
 		return ""
 	}
-	return strings.ReplaceAll(value, "\n", "\n   ")
+	return strings.ReplaceAll(value, "\n", "\n  ")
 }
 
 func newCreateCmd() *cobra.Command {
