@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +13,8 @@ import (
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
+	"github.com/mirako-ai/mirako-cli/pkg/ui"
+	promptui "github.com/mirako-ai/mirako-cli/pkg/ui/prompt"
 	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
 )
@@ -157,15 +158,15 @@ func printAvatarDetails(avatar api.AvatarResponse) {
 }
 
 func printViewField(label, value string) {
-	fmt.Println(label)
-	fmt.Printf("   %s\n\n", formatViewValue(value))
+	fmt.Printf("◆ %s\n", promptui.DefaultTheme().Bold(label))
+	fmt.Printf("  %s\n\n", formatViewValue(value))
 }
 
 func formatViewValue(value string) string {
 	if value == "" {
 		return ""
 	}
-	return strings.ReplaceAll(value, "\n", "\n   ")
+	return strings.ReplaceAll(value, "\n", "\n  ")
 }
 
 func formatSupportedInteractiveModels(models *[]string) string {
