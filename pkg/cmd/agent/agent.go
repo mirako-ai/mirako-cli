@@ -178,24 +178,24 @@ func runView(cmd *cobra.Command, args []string) error {
 }
 
 func printAgentDetails(agent api.AgentResponse) error {
-	fmt.Printf("ID: %s\n", agent.Id)
-	fmt.Printf("Name: %s\n", agent.Name)
+	printViewField("ID", agent.Id)
+	printViewField("Name", agent.Name)
 	if agent.Description != nil && *agent.Description != "" {
-		fmt.Printf("Description: %s\n", *agent.Description)
+		printViewField("Description", *agent.Description)
 	}
-	fmt.Printf("Avatar ID: %s\n", agent.AvatarId)
-	fmt.Printf("Voice Profile ID: %s\n", agent.VoiceProfileId)
-	fmt.Printf("Model: %s\n", agent.Model)
-	fmt.Printf("Runtime Kind: %s\n", agent.RuntimeKind)
-	fmt.Printf("Custom Agent Bearer Token Configured: %t\n", agent.HasCustomAgentBearerToken)
+	printViewField("Avatar ID", agent.AvatarId)
+	printViewField("Voice Profile ID", agent.VoiceProfileId)
+	printViewField("Model", agent.Model)
+	printViewField("Runtime Kind", agent.RuntimeKind)
+	printViewField("Custom Agent Bearer Token Configured", fmt.Sprintf("%t", agent.HasCustomAgentBearerToken))
 
 	if agent.RuntimeKind == customAgentRuntimeKind {
-		fmt.Printf("Custom Agent URL: %s\n", optionalString(agent.CustomAgentUrl))
-		fmt.Printf("Custom Agent Protocol: %s\n", optionalString(agent.CustomAgentProtocol))
+		printViewField("Custom Agent URL", optionalString(agent.CustomAgentUrl))
+		printViewField("Custom Agent Protocol", optionalString(agent.CustomAgentProtocol))
 	}
 
-	fmt.Printf("Created: %s\n", ui.FormatTimestamp(agent.CreatedAt))
-	fmt.Printf("Updated: %s\n", ui.FormatTimestamp(agent.UpdatedAt))
+	printViewField("Created", ui.FormatTimestamp(agent.CreatedAt))
+	printViewField("Updated", ui.FormatTimestamp(agent.UpdatedAt))
 
 	if agent.RuntimeKind != customAgentRuntimeKind {
 		tools := []any{}
@@ -207,11 +207,23 @@ func printAgentDetails(agent api.AgentResponse) error {
 			return fmt.Errorf("failed to format agent tools: %w", err)
 		}
 
-		fmt.Printf("\nInstruction:\n%s\n", optionalString(agent.Instruction))
-		fmt.Printf("\nTools:\n%s\n", string(toolsJSON))
+		printViewField("Instruction", optionalString(agent.Instruction))
+		printViewField("Tools", string(toolsJSON))
 	}
 
 	return nil
+}
+
+func printViewField(label, value string) {
+	fmt.Println(label)
+	fmt.Printf("   %s\n\n", formatViewValue(value))
+}
+
+func formatViewValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	return strings.ReplaceAll(value, "\n", "\n   ")
 }
 
 func newCreateCmd() *cobra.Command {

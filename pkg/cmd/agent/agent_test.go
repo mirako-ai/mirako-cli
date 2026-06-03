@@ -651,14 +651,50 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runView() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") || !strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
-			t.Fatalf("expected view output to contain managed agent details, got %q", output)
+		assertFieldOnSeparateLines(t, output, "ID", "agent-1")
+		assertFieldOnSeparateLines(t, output, "Description", "Helpful agent")
+		assertFieldOnSeparateLines(t, output, "Instruction", "Be helpful")
+		assertFieldOnSeparateLines(t, output, "Tools", "[")
+		assertFieldOnSeparateLines(t, output, "Custom Agent Bearer Token Configured", "false")
+		assertNoGuidedLine(t, output)
+		if strings.Contains(output, "Description: Helpful agent") || strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
+			t.Fatalf("expected field names and values on separate lines, got %q", output)
 		}
-		if strings.Contains(output, "LLM Model:") {
+		if strings.Contains(output, "LLM Model") {
 			t.Fatalf("managed agent view should not show llm model, got %q", output)
 		}
-		if strings.Contains(output, "Custom Agent URL:") {
+		if strings.Contains(output, "Custom Agent URL") {
 			t.Fatalf("managed agent view should not show custom-agent endpoint fields, got %q", output)
+		}
+	})
+
+	t.Run("view custom agent", func(t *testing.T) {
+		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assertRequest(t, r, http.MethodGet, "/v1/agents/custom-agent-1") {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+			writeJSON(w, http.StatusOK, fmt.Sprintf(`{"data":%s}`, testCustomAgentWithSecretJSON))
+		})
+		configureAgentTest(t, server.URL)
+
+		cmd := newViewCmd()
+		cmd.SetContext(context.Background())
+		output, err := captureStdout(t, func() error { return runView(cmd, []string{"custom-agent-1"}) })
+		if err != nil {
+			t.Fatalf("runView() returned error: %v", err)
+		}
+		assertNoSecret(t, output)
+		assertFieldOnSeparateLines(t, output, "ID", "custom-agent-1")
+		assertFieldOnSeparateLines(t, output, "Custom Agent URL", "https://agent.example.test/api/chat")
+		assertFieldOnSeparateLines(t, output, "Custom Agent Protocol", "vercel_ai_sdk")
+		assertFieldOnSeparateLines(t, output, "Custom Agent Bearer Token Configured", "true")
+		assertNoGuidedLine(t, output)
+		if strings.Contains(output, "Custom Agent URL: https://agent.example.test/api/chat") {
+			t.Fatalf("expected field names and values on separate lines, got %q", output)
+		}
+		if strings.Contains(output, "Instruction") || strings.Contains(output, "Tools") {
+			t.Fatalf("custom agent view should not show managed-agent instruction/tools, got %q", output)
 		}
 	})
 
@@ -1042,6 +1078,21 @@ func assertNoSecret(t *testing.T, output string) {
 	t.Helper()
 	if strings.Contains(output, "super-secret-token") {
 		t.Fatalf("output leaked bearer token: %q", output)
+	}
+}
+
+func assertFieldOnSeparateLines(t *testing.T, output, label, value string) {
+	t.Helper()
+	want := fmt.Sprintf("%s\n   %s", label, value)
+	if !strings.Contains(output, want) {
+		t.Fatalf("expected output to contain field %q and value %q on separate lines; got %q", label, value, output)
+	}
+}
+
+func assertNoGuidedLine(t *testing.T, output string) {
+	t.Helper()
+	if strings.Contains(output, "│") {
+		t.Fatalf("output should not contain a guided vertical line: %q", output)
 	}
 }
 
