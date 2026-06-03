@@ -129,27 +129,43 @@ func runView(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get avatar: %w", err)
 	}
 
-	fmt.Printf("ID: %s\n", resp.Data.Id)
-	fmt.Printf("Name: %s\n", resp.Data.Name)
-	fmt.Printf("Status: %s\n", resp.Data.Status)
-	fmt.Printf("Created: %s\n", resp.Data.CreatedAt.Local().Format("2006-01-02 15:04"))
-	fmt.Printf("User ID: %s\n", resp.Data.UserId)
-	fmt.Printf("Supported Models: %s\n", formatSupportedInteractiveModels(resp.Data.SupportedInteractiveModels))
+	printAvatarDetails(resp.Data)
+	return nil
+}
 
-	if resp.Data.Themes != nil && len(*resp.Data.Themes) > 0 {
-		fmt.Println("\nThemes:")
-		for _, theme := range *resp.Data.Themes {
-			fmt.Printf("  - %s:\n", theme.Name)
+func printAvatarDetails(avatar api.AvatarResponse) {
+	printViewField("ID", avatar.Id)
+	printViewField("Name", avatar.Name)
+	printViewField("Status", string(avatar.Status))
+	printViewField("Created", avatar.CreatedAt.Local().Format("2006-01-02 15:04"))
+	printViewField("User ID", avatar.UserId)
+	printViewField("Supported Models", formatSupportedInteractiveModels(avatar.SupportedInteractiveModels))
+
+	if avatar.Themes != nil && len(*avatar.Themes) > 0 {
+		fmt.Println("Themes")
+		fmt.Println()
+		for _, theme := range *avatar.Themes {
+			printViewField("Theme", theme.Name)
 			if theme.KeyImage != nil {
-				fmt.Printf("    Key Image: %s\n", *theme.KeyImage)
+				printViewField("Key Image", *theme.KeyImage)
 			}
 			if theme.LiveVideo != nil {
-				fmt.Printf("    Live Video: %s\n", *theme.LiveVideo)
+				printViewField("Live Video", *theme.LiveVideo)
 			}
 		}
 	}
+}
 
-	return nil
+func printViewField(label, value string) {
+	fmt.Println(label)
+	fmt.Printf("   %s\n\n", formatViewValue(value))
+}
+
+func formatViewValue(value string) string {
+	if value == "" {
+		return ""
+	}
+	return strings.ReplaceAll(value, "\n", "\n   ")
 }
 
 func formatSupportedInteractiveModels(models *[]string) string {
