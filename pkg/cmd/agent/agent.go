@@ -28,12 +28,12 @@ const (
 	managedAgentTypeDescription = "provide prompt/tools and host runtime on Mirako"
 	customAgentTypeLabel        = "custom agent"
 	customAgentTypeDescription  = "integrate your existing agent endpoint"
+	instructionFilePromptLabel  = "Instruction file path (.txt, .md, or .markdown)"
 )
 
 type agentPrompter interface {
 	Select(message string, options []promptui.SelectOption, defaultValue string) (string, error)
 	Input(message string, defaultValue string, required bool) (string, error)
-	Multiline(message string, defaultValue string, required bool) (string, error)
 	Password(message string) (string, error)
 }
 
@@ -52,10 +52,6 @@ func (p promptAgentPrompter) Select(message string, options []promptui.SelectOpt
 
 func (p promptAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
 	return p.prompts().Input(message, defaultValue, required)
-}
-
-func (p promptAgentPrompter) Multiline(message string, defaultValue string, required bool) (string, error) {
-	return p.prompts().Multiline(message, defaultValue, required)
 }
 
 func (p promptAgentPrompter) Password(message string) (string, error) {
@@ -221,8 +217,8 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringP("voice", "v", "", "Voice profile ID to use")
 	cmd.Flags().StringP("model", "m", config.DefaultInteractiveModel, "Interactive model to use")
 	cmd.Flags().String("runtime-kind", "", "Runtime kind for the agent (managed_agent or custom_agent)")
-	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt text for managed agents")
-	cmd.Flags().String("instruction-file", "", "Path to a text or Markdown file containing the managed-agent instruction prompt")
+	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt text for managed agents (non-interactive)")
+	cmd.Flags().String("instruction-file", "", "Path to a .txt, .md, or .markdown file containing the managed-agent instruction prompt")
 	cmd.Flags().String("tools", "", "Tools to use for the managed agent (JSON array string)")
 	cmd.Flags().String("tools-file", "", "Path to a JSON file containing a managed-agent tools array")
 	cmd.Flags().String("custom-agent-url", "", "Custom agent endpoint URL")
@@ -624,26 +620,48 @@ func resolveInstruction(cmd *cobra.Command) (string, error) {
 
 func resolveInstructionWithPrompt(cmd *cobra.Command, prompter agentPrompter, prompt bool) (string, error) {
 	instruction, _ := cmd.Flags().GetString("instruction")
-	instructionFile, _ := cmd.Flags().GetString("instruction-file")
-	if instruction != "" && instructionFile != "" {
+	instructionFile := strings.TrimSpace(stringFlag(cmd, "instruction-file"))
+	if strings.TrimSpace(instruction) != "" && instructionFile != "" {
 		return "", fmt.Errorf("use either --instruction or --instruction-file, not both")
 	}
+	if flagChanged(cmd, "instruction-file") && instructionFile == "" {
+		return "", fmt.Errorf("instruction file path is required")
+	}
 	if instructionFile != "" {
-		data, err := os.ReadFile(instructionFile)
-		if err != nil {
-			return "", fmt.Errorf("failed to read instruction file: %w", err)
-		}
-		return string(data), nil
+		return readInstructionFile(instructionFile)
 	}
 	if prompt && strings.TrimSpace(instruction) == "" && !flagChanged(cmd, "instruction") && !flagChanged(cmd, "instruction-file") {
 		if prompter == nil {
 			prompter = defaultAgentPrompter
 		}
-		answer, err := prompter.Multiline("Instruction prompt", "", true)
+		answer, err := prompter.Input(instructionFilePromptLabel, "", true)
 		if err != nil {
-			return "", fmt.Errorf("error getting instruction: %w", err)
+			return "", fmt.Errorf("error getting instruction file path: %w", err)
 		}
-		return answer, nil
+		return readInstructionFile(answer)
+	}
+	return instruction, nil
+}
+
+func readInstructionFile(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("instruction file path is required")
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read instruction file %q: %w", path, err)
+	}
+	if info.IsDir() {
+		return "", fmt.Errorf("failed to read instruction file %q: path must point to a file, not a directory", path)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read instruction file %q: %w", path, err)
+	}
+	instruction := string(data)
+	if strings.TrimSpace(instruction) == "" {
+		return "", fmt.Errorf("instruction file is empty: %s", path)
 	}
 	return instruction, nil
 }
