@@ -44,6 +44,13 @@ func TestRendererRenderInputAndSubmitted(t *testing.T) {
 		}
 	}
 
+	multiline := renderer.RenderMultilineInput("Instruction prompt", "")
+	for _, want := range []string{"◆ Instruction prompt", "│  Enter two empty lines to finish; large pastes are supported.", "❯ "} {
+		if !strings.Contains(multiline, want) {
+			t.Fatalf("RenderMultilineInput() missing %q in output:\n%s", want, multiline)
+		}
+	}
+
 	submitted := renderer.RenderSubmitted("Interactive model", "metis-2.5")
 	for _, want := range []string{"◇ Interactive model", "│  metis-2.5", "│ \n"} {
 		if !strings.Contains(submitted, want) {

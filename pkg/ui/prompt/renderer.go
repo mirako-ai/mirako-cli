@@ -88,6 +88,19 @@ func (r Renderer) RenderInput(label string, defaultValue string) string {
 	return b.String()
 }
 
+// RenderMultilineInput renders an active multiline text input prompt.
+func (r Renderer) RenderMultilineInput(label string, defaultValue string) string {
+	theme := r.Theme.withDefaults()
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s %s\n", theme.Accent(theme.Symbols.ActiveStep), theme.Bold(label))
+	if defaultValue != "" {
+		fmt.Fprintf(&b, "%s  %s %s\n", theme.Muted(theme.Symbols.Bar), theme.Muted("default:"), theme.Muted(defaultValue))
+	}
+	fmt.Fprintf(&b, "%s  %s\n", theme.Muted(theme.Symbols.Bar), theme.Muted("Enter two empty lines to finish; large pastes are supported."))
+	fmt.Fprintf(&b, "%s ", theme.Accent(theme.Symbols.Pointer))
+	return b.String()
+}
+
 // RenderSubmitted renders a submitted prompt result.
 func (r Renderer) RenderSubmitted(label string, value string) string {
 	theme := r.Theme.withDefaults()
