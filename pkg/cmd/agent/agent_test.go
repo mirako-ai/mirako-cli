@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -26,7 +27,6 @@ const testAgentJSON = `{
   "avatar_id": "avatar-1",
   "voice_profile_id": "voice-1",
   "model": "metis-2.5",
-  "llm_model": "gemini-2.0-flash",
   "instruction": "Be helpful",
   "tools": [{"type":"function","name":"search"}],
   "runtime_kind": "managed_agent",
@@ -69,6 +69,28 @@ const testCustomAgentWithSecretJSON = `{
   "updated_at": "2026-05-25T00:01:00Z"
 }`
 
+func TestAgentSDKTypesOmitLlmModel(t *testing.T) {
+	types := map[string]reflect.Type{
+		"Agent":                      reflect.TypeOf(api.Agent{}),
+		"AgentResponse":              reflect.TypeOf(api.AgentResponse{}),
+		"CreateAgentJSONRequestBody": reflect.TypeOf(api.CreateAgentJSONRequestBody{}),
+		"UpdateAgentJSONRequestBody": reflect.TypeOf(api.UpdateAgentJSONRequestBody{}),
+	}
+
+	for name, typ := range types {
+		t.Run(name, func(t *testing.T) {
+			if _, ok := typ.FieldByName("LlmModel"); ok {
+				t.Fatalf("%s must not expose LlmModel", name)
+			}
+			for i := 0; i < typ.NumField(); i++ {
+				if strings.Contains(typ.Field(i).Tag.Get("json"), "llm_model") {
+					t.Fatalf("%s must not expose json field llm_model", name)
+				}
+			}
+		})
+	}
+}
+
 func TestRunCreateValidation(t *testing.T) {
 	forceNonInteractive(t)
 
@@ -98,22 +120,11 @@ func TestRunCreateValidation(t *testing.T) {
 			errorContains: "voice profile ID is required",
 		},
 		{
-			name: "missing llm model",
-			flags: map[string]string{
-				"name":        "agent",
-				"avatar":      "avatar-1",
-				"voice":       "voice-1",
-				"instruction": "Be helpful",
-			},
-			errorContains: "LLM model is required",
-		},
-		{
 			name: "missing instruction",
 			flags: map[string]string{
-				"name":      "agent",
-				"avatar":    "avatar-1",
-				"voice":     "voice-1",
-				"llm-model": "gemini-2.0-flash",
+				"name":   "agent",
+				"avatar": "avatar-1",
+				"voice":  "voice-1",
 			},
 			errorContains: "instruction is required",
 		},
@@ -196,7 +207,6 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 			"Voice profile ID":            "voice-1",
 			"Description (optional)":      "Helpful managed agent",
 			"Interactive model":           "metis-2.5",
-			"LLM model":                   "gemini-2.0-flash",
 			"Tools JSON array (optional)": `[{"type":"function","name":"search"}]`,
 		},
 		multilines: map[string]string{
@@ -217,9 +227,7 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 	if body.Name != "Managed Agent" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" {
 		t.Fatalf("unexpected common fields: %+v", body)
 	}
-	if body.LlmModel == nil || *body.LlmModel != "gemini-2.0-flash" {
-		t.Fatalf("llm model = %v, want gemini-2.0-flash", body.LlmModel)
-	}
+	assertJSONFieldAbsent(t, body, "llm_model")
 	if body.Instruction == nil || *body.Instruction != "Be helpful" {
 		t.Fatalf("instruction = %v, want Be helpful", body.Instruction)
 	}
@@ -265,7 +273,8 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 	if body.CustomAgentProtocol == nil || *body.CustomAgentProtocol != api.CreateAgentInputCustomAgentProtocolVercelAiSdk {
 		t.Fatalf("custom agent protocol = %v, want vercel_ai_sdk", body.CustomAgentProtocol)
 	}
-	if body.LlmModel != nil || body.Instruction != nil || body.Tools != nil {
+	assertJSONFieldAbsent(t, body, "llm_model")
+	if body.Instruction != nil || body.Tools != nil {
 		t.Fatalf("custom agents must not include managed fields: %+v", body)
 	}
 }
@@ -286,7 +295,7 @@ func TestAgentTypePromptOptionsIncludeDescriptionsAndRuntimeValues(t *testing.T)
 		{
 			index:       0,
 			wantLabel:   "managed agent",
-			wantDesc:    "provide prompt, model/tools and host runtime on Mirako",
+			wantDesc:    "provide prompt/tools and host runtime on Mirako",
 			wantValue:   managedAgentRuntimeKind,
 			wantRuntime: api.CreateAgentInputRuntimeKindManagedAgent,
 		},
@@ -580,8 +589,11 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runView() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") || !strings.Contains(output, "LLM Model: gemini-2.0-flash") || !strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
+		if !strings.Contains(output, "Description: Helpful agent") || !strings.Contains(output, "Be helpful") || !strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
 			t.Fatalf("expected view output to contain managed agent details, got %q", output)
+		}
+		if strings.Contains(output, "LLM Model:") {
+			t.Fatalf("managed agent view should not show llm model, got %q", output)
 		}
 		if strings.Contains(output, "Custom Agent URL:") {
 			t.Fatalf("managed agent view should not show custom-agent endpoint fields, got %q", output)
@@ -620,15 +632,32 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 				return
 			}
 
+			bodyBytes, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("failed to read request body: %v", err)
+				http.Error(w, "invalid request body", http.StatusBadRequest)
+				return
+			}
 			var body api.CreateAgentJSONRequestBody
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			if err := json.Unmarshal(bodyBytes, &body); err != nil {
 				t.Errorf("failed to decode request body: %v", err)
 				http.Error(w, "invalid request body", http.StatusBadRequest)
 				return
 			}
-			if body.Name != "Agent One" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" || body.LlmModel == nil || *body.LlmModel != "gemini-2.0-flash" {
+			var raw map[string]any
+			if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+				t.Errorf("failed to decode raw request body: %v", err)
+				http.Error(w, "invalid request body", http.StatusBadRequest)
+				return
+			}
+			if body.Name != "Agent One" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" {
 				t.Errorf("unexpected create request body: %+v", body)
 				http.Error(w, "unexpected request body", http.StatusBadRequest)
+				return
+			}
+			if _, ok := raw["llm_model"]; ok {
+				t.Errorf("managed create request included llm_model: %s", string(bodyBytes))
+				http.Error(w, "llm_model present", http.StatusBadRequest)
 				return
 			}
 			if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindManagedAgent {
@@ -669,7 +698,6 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			"avatar":      "avatar-1",
 			"voice":       "voice-1",
 			"model":       "metis-2.5",
-			"llm-model":   "gemini-2.0-flash",
 			"instruction": "Be helpful",
 			"tools":       `[{"type":"function","name":"search"}]`,
 		})
@@ -678,8 +706,11 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCreate() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "Runtime Kind: managed_agent") || !strings.Contains(output, "LLM Model: gemini-2.0-flash") {
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "Runtime Kind: managed_agent") {
 			t.Fatalf("expected create output to contain managed success details, got %q", output)
+		}
+		if strings.Contains(output, "LLM Model:") {
+			t.Fatalf("managed agent create output should not show llm model, got %q", output)
 		}
 		if strings.Contains(output, "Custom Agent URL:") {
 			t.Fatalf("managed agent create output should not show custom-agent endpoint fields, got %q", output)
@@ -742,7 +773,6 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			"runtime-kind":              "custom_agent",
 			"custom-agent-url":          "https://agent.example.test/api/chat",
 			"custom-agent-bearer-token": "super-secret-token",
-			"llm-model":                 "should-not-send",
 			"instruction":               "Do not send",
 			"tools":                     `[{"name":"do-not-send"}]`,
 		})
@@ -849,6 +879,21 @@ func assertNoSecret(t *testing.T, output string) {
 	t.Helper()
 	if strings.Contains(output, "super-secret-token") {
 		t.Fatalf("output leaked bearer token: %q", output)
+	}
+}
+
+func assertJSONFieldAbsent(t *testing.T, value any, field string) {
+	t.Helper()
+	encoded, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("failed to marshal value: %v", err)
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(encoded, &raw); err != nil {
+		t.Fatalf("failed to decode marshaled value: %v", err)
+	}
+	if _, ok := raw[field]; ok {
+		t.Fatalf("field %q must be absent from JSON: %s", field, string(encoded))
 	}
 }
 

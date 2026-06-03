@@ -25,7 +25,7 @@ const (
 	customAgentProtocolVercelAISDK = string(api.CreateAgentInputCustomAgentProtocolVercelAiSdk)
 
 	managedAgentTypeLabel       = "managed agent"
-	managedAgentTypeDescription = "provide prompt, model/tools and host runtime on Mirako"
+	managedAgentTypeDescription = "provide prompt/tools and host runtime on Mirako"
 	customAgentTypeLabel        = "custom agent"
 	customAgentTypeDescription  = "integrate your existing agent endpoint"
 )
@@ -127,7 +127,6 @@ func runList(cmd *cobra.Command, args []string) error {
 			agent.AvatarId,
 			agent.VoiceProfileId,
 			agent.Model,
-			optionalString(agent.LlmModel),
 			agent.HasCustomAgentBearerToken,
 			ui.FormatTimestamp(agent.UpdatedAt),
 		})
@@ -186,8 +185,6 @@ func printAgentDetails(agent api.AgentResponse) error {
 	if agent.RuntimeKind == customAgentRuntimeKind {
 		fmt.Printf("Custom Agent URL: %s\n", optionalString(agent.CustomAgentUrl))
 		fmt.Printf("Custom Agent Protocol: %s\n", optionalString(agent.CustomAgentProtocol))
-	} else {
-		fmt.Printf("LLM Model: %s\n", optionalString(agent.LlmModel))
 	}
 
 	fmt.Printf("Created: %s\n", ui.FormatTimestamp(agent.CreatedAt))
@@ -224,7 +221,6 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringP("voice", "v", "", "Voice profile ID to use")
 	cmd.Flags().StringP("model", "m", config.DefaultInteractiveModel, "Interactive model to use")
 	cmd.Flags().String("runtime-kind", "", "Runtime kind for the agent (managed_agent or custom_agent)")
-	cmd.Flags().StringP("llm-model", "l", "", "LLM model to use for managed agents")
 	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt text for managed agents")
 	cmd.Flags().String("instruction-file", "", "Path to a text or Markdown file containing the managed-agent instruction prompt")
 	cmd.Flags().String("tools", "", "Tools to use for the managed agent (JSON array string)")
@@ -344,18 +340,6 @@ func buildCreateAgentBody(cmd *cobra.Command, prompter agentPrompter, stdinTTY b
 }
 
 func populateManagedAgentCreateBody(cmd *cobra.Command, prompter agentPrompter, prompt bool, body *api.CreateAgentJSONRequestBody) error {
-	llmModel := strings.TrimSpace(stringFlag(cmd, "llm-model"))
-	if prompt && llmModel == "" {
-		answer, err := prompter.Input("LLM model", config.DefaultLLMModel, true)
-		if err != nil {
-			return fmt.Errorf("error getting LLM model: %w", err)
-		}
-		llmModel = strings.TrimSpace(answer)
-	}
-	if llmModel == "" {
-		return fmt.Errorf("LLM model is required. Use --llm-model flag")
-	}
-
 	instruction, err := resolveInstructionWithPrompt(cmd, prompter, prompt)
 	if err != nil {
 		return err
@@ -369,7 +353,6 @@ func populateManagedAgentCreateBody(cmd *cobra.Command, prompter agentPrompter, 
 		return err
 	}
 
-	body.LlmModel = &llmModel
 	body.Instruction = &instruction
 	body.Tools = &tools
 	return nil
@@ -518,8 +501,7 @@ func createHasMissingRequiredFields(cmd *cobra.Command) bool {
 
 	switch runtimeKind {
 	case api.CreateAgentInputRuntimeKindManagedAgent:
-		return strings.TrimSpace(stringFlag(cmd, "llm-model")) == "" ||
-			(strings.TrimSpace(stringFlag(cmd, "instruction")) == "" && strings.TrimSpace(stringFlag(cmd, "instruction-file")) == "")
+		return strings.TrimSpace(stringFlag(cmd, "instruction")) == "" && strings.TrimSpace(stringFlag(cmd, "instruction-file")) == ""
 	case api.CreateAgentInputRuntimeKindCustomAgent:
 		return strings.TrimSpace(stringFlag(cmd, "custom-agent-url")) == ""
 	default:
@@ -587,8 +569,6 @@ func printAgentCreateSuccess(agent api.AgentResponse) {
 	if agent.RuntimeKind == customAgentRuntimeKind {
 		fmt.Printf("   Custom Agent URL: %s\n", optionalString(agent.CustomAgentUrl))
 		fmt.Printf("   Custom Agent Protocol: %s\n", optionalString(agent.CustomAgentProtocol))
-	} else {
-		fmt.Printf("   LLM Model: %s\n", optionalString(agent.LlmModel))
 	}
 }
 
