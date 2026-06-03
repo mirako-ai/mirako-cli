@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -34,6 +35,7 @@ const (
 type agentPrompter interface {
 	Select(message string, options []promptui.SelectOption, defaultValue string) (string, error)
 	Input(message string, defaultValue string, required bool) (string, error)
+	PathInput(message string, defaultValue string, required bool) (string, error)
 	Password(message string) (string, error)
 }
 
@@ -52,6 +54,10 @@ func (p promptAgentPrompter) Select(message string, options []promptui.SelectOpt
 
 func (p promptAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
 	return p.prompts().Input(message, defaultValue, required)
+}
+
+func (p promptAgentPrompter) PathInput(message string, defaultValue string, required bool) (string, error) {
+	return p.prompts().PathInput(message, defaultValue, required)
 }
 
 func (p promptAgentPrompter) Password(message string) (string, error) {
@@ -634,7 +640,7 @@ func resolveInstructionWithPrompt(cmd *cobra.Command, prompter agentPrompter, pr
 		if prompter == nil {
 			prompter = defaultAgentPrompter
 		}
-		answer, err := prompter.Input(instructionFilePromptLabel, "", true)
+		answer, err := prompter.PathInput(instructionFilePromptLabel, "", true)
 		if err != nil {
 			return "", fmt.Errorf("error getting instruction file path: %w", err)
 		}
@@ -644,26 +650,51 @@ func resolveInstructionWithPrompt(cmd *cobra.Command, prompter agentPrompter, pr
 }
 
 func readInstructionFile(path string) (string, error) {
-	path = strings.TrimSpace(path)
-	if path == "" {
+	displayPath := strings.TrimSpace(path)
+	if displayPath == "" {
 		return "", fmt.Errorf("instruction file path is required")
 	}
-	info, err := os.Stat(path)
+	resolvedPath, err := expandInstructionFilePath(displayPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read instruction file %q: %w", path, err)
+		return "", fmt.Errorf("failed to read instruction file %q: %w", displayPath, err)
+	}
+	info, err := os.Stat(resolvedPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read instruction file %q: %w", displayPath, err)
 	}
 	if info.IsDir() {
-		return "", fmt.Errorf("failed to read instruction file %q: path must point to a file, not a directory", path)
+		return "", fmt.Errorf("failed to read instruction file %q: path must point to a file, not a directory", displayPath)
 	}
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
-		return "", fmt.Errorf("failed to read instruction file %q: %w", path, err)
+		return "", fmt.Errorf("failed to read instruction file %q: %w", displayPath, err)
 	}
 	instruction := string(data)
 	if strings.TrimSpace(instruction) == "" {
-		return "", fmt.Errorf("instruction file is empty: %s", path)
+		return "", fmt.Errorf("instruction file is empty: %s", displayPath)
 	}
 	return instruction, nil
+}
+
+func expandInstructionFilePath(path string) (string, error) {
+	if path == "~" {
+		return os.UserHomeDir()
+	}
+	if strings.HasPrefix(path, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, path[2:]), nil
+	}
+	if os.PathSeparator != '/' && strings.HasPrefix(path, "~"+string(os.PathSeparator)) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(home, path[2:]), nil
+	}
+	return path, nil
 }
 
 func resolveTools(cmd *cobra.Command) ([]any, error) {

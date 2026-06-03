@@ -213,8 +213,10 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 			"Voice profile ID":            "voice-1",
 			"Description (optional)":      "Helpful managed agent",
 			"Interactive model":           "metis-2.5",
-			instructionFilePromptLabel:    instructionFile,
 			"Tools JSON array (optional)": `[{"type":"function","name":"search"}]`,
+		},
+		pathInputs: map[string]string{
+			instructionFilePromptLabel: instructionFile,
 		},
 	}
 
@@ -235,7 +237,7 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 	if body.Instruction == nil || *body.Instruction != instruction {
 		t.Fatalf("instruction = %v, want %q", body.Instruction, instruction)
 	}
-	if !containsCall(prompter.calls, "input:"+instructionFilePromptLabel) {
+	if !containsCall(prompter.calls, "path-input:"+instructionFilePromptLabel) {
 		t.Fatalf("expected instruction file path input prompt, got calls %v", prompter.calls)
 	}
 	if containsCallPrefix(prompter.calls, "multiline:") {
@@ -368,6 +370,12 @@ func TestResolveInstruction(t *testing.T) {
 	if err := os.WriteFile(emptyInstructionFile, []byte("\n\t  \n"), 0644); err != nil {
 		t.Fatalf("failed to write empty instruction file: %v", err)
 	}
+	homeInstructionFile := filepath.Join(tmpDir, "home-instruction.md")
+	if err := os.WriteFile(homeInstructionFile, []byte("Home instruction"), 0644); err != nil {
+		t.Fatalf("failed to write home instruction file: %v", err)
+	}
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
 
 	tests := []struct {
 		name          string
@@ -386,6 +394,11 @@ func TestResolveInstruction(t *testing.T) {
 			name: "instruction file",
 			file: instructionFile,
 			want: "File instruction",
+		},
+		{
+			name: "instruction file with tilde path",
+			file: "~/home-instruction.md",
+			want: "Home instruction",
 		},
 		{
 			name:          "inline and file conflict",
@@ -977,6 +990,7 @@ type fakeAgentPrompter struct {
 	selects       map[string]string
 	selectOptions map[string][]promptui.SelectOption
 	inputs        map[string]string
+	pathInputs    map[string]string
 	passwords     map[string]string
 	calls         []string
 }
@@ -999,6 +1013,16 @@ func (p *fakeAgentPrompter) Input(message string, defaultValue string, required 
 	p.calls = append(p.calls, "input:"+message)
 	if p.inputs != nil {
 		if answer, ok := p.inputs[message]; ok {
+			return answer, nil
+		}
+	}
+	return defaultValue, nil
+}
+
+func (p *fakeAgentPrompter) PathInput(message string, defaultValue string, required bool) (string, error) {
+	p.calls = append(p.calls, "path-input:"+message)
+	if p.pathInputs != nil {
+		if answer, ok := p.pathInputs[message]; ok {
 			return answer, nil
 		}
 	}
