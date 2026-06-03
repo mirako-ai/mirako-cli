@@ -34,6 +34,7 @@ const (
 
 type agentPrompter interface {
 	Select(message string, options []promptui.SelectOption, defaultValue string) (string, error)
+	SearchSelect(message string, options []promptui.SelectOption, defaultValue string) (string, error)
 	Input(message string, defaultValue string, required bool) (string, error)
 	PathInput(message string, defaultValue string, required bool) (string, error)
 	Password(message string) (string, error)
@@ -50,6 +51,10 @@ var (
 
 func (p promptAgentPrompter) Select(message string, options []promptui.SelectOption, defaultValue string) (string, error) {
 	return p.prompts().Select(message, options, defaultValue)
+}
+
+func (p promptAgentPrompter) SearchSelect(message string, options []promptui.SelectOption, defaultValue string) (string, error) {
+	return p.prompts().SearchSelect(message, options, defaultValue)
 }
 
 func (p promptAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
@@ -237,14 +242,34 @@ func newCreateCmd() *cobra.Command {
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
-	body, err := buildCreateAgentBody(cmd, defaultAgentPrompter, stdinIsTTY())
+	stdinTTY := stdinIsTTY()
+	if runtimeValue := strings.TrimSpace(stringFlag(cmd, "runtime-kind")); runtimeValue != "" {
+		if _, err := parseRuntimeKind(runtimeValue); err != nil {
+			return err
+		}
+	}
+
+	var c *client.Client
+	var selectionProvider agentSelectionProvider
+	if stdinTTY && createNeedsSelectionProvider(cmd) {
+		var err error
+		c, err = newClient(cmd)
+		if err != nil {
+			return err
+		}
+		selectionProvider = apiAgentSelectionProvider{client: c}
+	}
+
+	body, err := buildCreateAgentBody(cmd, defaultAgentPrompter, stdinTTY, selectionProvider)
 	if err != nil {
 		return err
 	}
 
-	c, err := newClient(cmd)
-	if err != nil {
-		return err
+	if c == nil {
+		c, err = newClient(cmd)
+		if err != nil {
+			return err
+		}
 	}
 
 	resp, err := c.CreateAgent(cmd.Context(), body)
@@ -264,7 +289,7 @@ func runCreate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func buildCreateAgentBody(cmd *cobra.Command, prompter agentPrompter, stdinTTY bool) (api.CreateAgentJSONRequestBody, error) {
+func buildCreateAgentBody(cmd *cobra.Command, prompter agentPrompter, stdinTTY bool, selectionProvider agentSelectionProvider) (api.CreateAgentJSONRequestBody, error) {
 	if prompter == nil {
 		prompter = defaultAgentPrompter
 	}
@@ -285,11 +310,11 @@ func buildCreateAgentBody(cmd *cobra.Command, prompter agentPrompter, stdinTTY b
 	if err != nil {
 		return api.CreateAgentJSONRequestBody{}, err
 	}
-	avatarID, err := resolveRequiredStringField(cmd, prompter, prompt, "avatar", "Avatar ID", "", "avatar ID is required. Use --avatar flag")
+	avatarID, err := resolveAvatarID(cmd, prompter, prompt, selectionProvider)
 	if err != nil {
 		return api.CreateAgentJSONRequestBody{}, err
 	}
-	voiceID, err := resolveRequiredStringField(cmd, prompter, prompt, "voice", "Voice profile ID", "", "voice profile ID is required. Use --voice flag")
+	voiceID, err := resolveVoiceProfileID(cmd, prompter, prompt, selectionProvider)
 	if err != nil {
 		return api.CreateAgentJSONRequestBody{}, err
 	}
@@ -486,7 +511,7 @@ func validateCustomAgentURL(value string) error {
 }
 
 func createHasMissingRequiredFields(cmd *cobra.Command) bool {
-	if strings.TrimSpace(stringFlag(cmd, "name")) == "" || strings.TrimSpace(stringFlag(cmd, "avatar")) == "" || strings.TrimSpace(stringFlag(cmd, "voice")) == "" {
+	if strings.TrimSpace(stringFlag(cmd, "name")) == "" || createNeedsSelectionProvider(cmd) {
 		return true
 	}
 
@@ -511,6 +536,10 @@ func createHasMissingRequiredFields(cmd *cobra.Command) bool {
 	}
 }
 
+func createNeedsSelectionProvider(cmd *cobra.Command) bool {
+	return strings.TrimSpace(stringFlag(cmd, "avatar")) == "" || strings.TrimSpace(stringFlag(cmd, "voice")) == ""
+}
+
 func resolveRequiredStringField(cmd *cobra.Command, prompter agentPrompter, prompt bool, flagName string, promptMessage string, defaultValue string, errorMessage string) (string, error) {
 	value := strings.TrimSpace(stringFlag(cmd, flagName))
 	if prompt && value == "" {
@@ -524,6 +553,68 @@ func resolveRequiredStringField(cmd *cobra.Command, prompter agentPrompter, prom
 		return "", fmt.Errorf("%s", errorMessage)
 	}
 	return value, nil
+}
+
+func resolveAvatarID(cmd *cobra.Command, prompter agentPrompter, prompt bool, selectionProvider agentSelectionProvider) (string, error) {
+	value := strings.TrimSpace(stringFlag(cmd, "avatar"))
+	if value != "" {
+		return value, nil
+	}
+	if !prompt {
+		return "", fmt.Errorf("avatar ID is required. Use --avatar flag")
+	}
+	if selectionProvider == nil {
+		return "", fmt.Errorf("avatar selector is unavailable")
+	}
+
+	options, err := selectionProvider.AvatarOptions(cmd.Context())
+	if err != nil {
+		return "", formatAPIError(err, "failed to list avatars")
+	}
+	if len(options) == 0 {
+		return "", fmt.Errorf("no READY avatars found. Create or finish building an avatar with 'mirako avatar build' or 'mirako avatar generate'")
+	}
+
+	choice, err := prompter.SearchSelect("Choose avatar", options, "")
+	if err != nil {
+		return "", fmt.Errorf("error choosing avatar: %w", err)
+	}
+	choice = strings.TrimSpace(choice)
+	if choice == "" {
+		return "", fmt.Errorf("avatar ID is required. Use --avatar flag")
+	}
+	return choice, nil
+}
+
+func resolveVoiceProfileID(cmd *cobra.Command, prompter agentPrompter, prompt bool, selectionProvider agentSelectionProvider) (string, error) {
+	value := strings.TrimSpace(stringFlag(cmd, "voice"))
+	if value != "" {
+		return value, nil
+	}
+	if !prompt {
+		return "", fmt.Errorf("voice profile ID is required. Use --voice flag")
+	}
+	if selectionProvider == nil {
+		return "", fmt.Errorf("voice profile selector is unavailable")
+	}
+
+	options, err := selectionProvider.VoiceProfileOptions(cmd.Context())
+	if err != nil {
+		return "", formatAPIError(err, "failed to list voice profiles")
+	}
+	if len(options) == 0 {
+		return "", fmt.Errorf("no voice profiles found")
+	}
+
+	choice, err := prompter.SearchSelect("Choose voice profile", options, "")
+	if err != nil {
+		return "", fmt.Errorf("error choosing voice profile: %w", err)
+	}
+	choice = strings.TrimSpace(choice)
+	if choice == "" {
+		return "", fmt.Errorf("voice profile ID is required. Use --voice flag")
+	}
+	return choice, nil
 }
 
 func resolveCustomAgentBearerToken(cmd *cobra.Command, prompter agentPrompter, prompt bool) (string, error) {
@@ -560,18 +651,8 @@ func hasCustomAgentFlagValues(cmd *cobra.Command) bool {
 }
 
 func printAgentCreateSuccess(agent api.AgentResponse) {
-	fmt.Printf("Agent created successfully!\n")
-	fmt.Printf("   Agent ID: %s\n", agent.Id)
-	fmt.Printf("   Name: %s\n", agent.Name)
-	fmt.Printf("   Avatar ID: %s\n", agent.AvatarId)
-	fmt.Printf("   Voice Profile ID: %s\n", agent.VoiceProfileId)
-	fmt.Printf("   Model: %s\n", agent.Model)
-	fmt.Printf("   Runtime Kind: %s\n", agent.RuntimeKind)
-	fmt.Printf("   Custom Agent Bearer Token Configured: %t\n", agent.HasCustomAgentBearerToken)
-	if agent.RuntimeKind == customAgentRuntimeKind {
-		fmt.Printf("   Custom Agent URL: %s\n", optionalString(agent.CustomAgentUrl))
-		fmt.Printf("   Custom Agent Protocol: %s\n", optionalString(agent.CustomAgentProtocol))
-	}
+	fmt.Printf("Agent created successfully. Use this agent ID for interactive.\n\n")
+	fmt.Printf("   %s\n\n", agent.Id)
 }
 
 func newDeleteCmd() *cobra.Command {

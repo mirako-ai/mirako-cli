@@ -28,6 +28,28 @@ func TestPrompterSelectReturnsOptionValue(t *testing.T) {
 	}
 }
 
+func TestPrompterSearchSelectFiltersAndReturnsOptionValue(t *testing.T) {
+	var output bytes.Buffer
+	prompter := NewPrompter(
+		WithIO(strings.NewReader("custom\n"), &output),
+		WithTheme(PlainTheme()),
+	)
+
+	got, err := prompter.SearchSelect("Choose voice profile", []SelectOption{
+		{Label: "Premade Voice", Value: "voice-premade", Hint: "voice-premade"},
+		{Label: "Custom Voice", Value: "voice-custom", Hint: "voice-custom"},
+	}, "")
+	if err != nil {
+		t.Fatalf("SearchSelect() returned error: %v", err)
+	}
+	if got != "voice-custom" {
+		t.Fatalf("SearchSelect() = %q, want voice-custom", got)
+	}
+	if !strings.Contains(output.String(), "Search: custom") || !strings.Contains(output.String(), "Custom Voice") {
+		t.Fatalf("SearchSelect() output should render search query and match, got %q", output.String())
+	}
+}
+
 func TestTerminalNewlinesUseCarriageReturnsForRawMode(t *testing.T) {
 	got := terminalNewlines("first\nsecond\r\nthird")
 	want := "first\r\nsecond\r\nthird"

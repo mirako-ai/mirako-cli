@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
 
 	"golang.org/x/term"
 )
@@ -23,6 +24,7 @@ const (
 	keyUp
 	keyDown
 	keyCancel
+	keyBackspace
 )
 
 const (
@@ -157,6 +159,83 @@ func (p *Prompter) Select(label string, options []SelectOption, defaultValue str
 			p.writeBlock(p.renderer.RenderCancelled(label), lines)
 			return "", ErrCancelled
 		}
+	}
+}
+
+// SearchSelect shows a searchable single-select prompt with arrow-key navigation.
+func (p *Prompter) SearchSelect(label string, options []SelectOption, defaultValue string) (string, error) {
+	if len(options) == 0 {
+		return "", fmt.Errorf("selector prompt %q has no options", label)
+	}
+
+	query := ""
+	filtered := filterSelectOptions(options, query)
+	selected := selectedOptionIndex(filtered, defaultValue)
+	restore, err := p.enterRawMode()
+	if err != nil {
+		return "", err
+	}
+	restored := false
+	restoreOnce := func() {
+		if !restored {
+			restore()
+		}
+		restored = true
+	}
+	defer restoreOnce()
+
+	lines := p.writeBlock(p.renderer.RenderSearchSelect(label, filtered, selected, query, 0), 0)
+	for {
+		pressed, err := p.readSearchKey()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				restoreOnce()
+				p.writeBlock(p.renderer.RenderCancelled(label), lines)
+				return "", ErrCancelled
+			}
+			return "", err
+		}
+
+		switch pressed.key {
+		case keyUp:
+			if len(filtered) > 0 {
+				selected--
+				if selected < 0 {
+					selected = len(filtered) - 1
+				}
+			}
+		case keyDown:
+			if len(filtered) > 0 {
+				selected = (selected + 1) % len(filtered)
+			}
+		case keyEnter:
+			if len(filtered) == 0 {
+				lines = p.writeBlock(p.renderer.RenderSearchSelect(label, filtered, selected, query, 0), lines)
+				continue
+			}
+			restoreOnce()
+			p.writeBlock(p.renderer.RenderSubmitted(label, filtered[selected].displayLabel()), lines)
+			return filtered[selected].Result(), nil
+		case keyBackspace:
+			if query != "" {
+				runes := []rune(query)
+				query = string(runes[:len(runes)-1])
+				filtered = filterSelectOptions(options, query)
+				selected = 0
+			}
+		case keyCancel:
+			restoreOnce()
+			p.writeBlock(p.renderer.RenderCancelled(label), lines)
+			return "", ErrCancelled
+		default:
+			if pressed.char != 0 {
+				query += string(pressed.char)
+				filtered = filterSelectOptions(options, query)
+				selected = 0
+			}
+		}
+
+		lines = p.writeBlock(p.renderer.RenderSearchSelect(label, filtered, selected, query, 0), lines)
 	}
 }
 
@@ -369,6 +448,36 @@ func selectedOptionIndex(options []SelectOption, defaultValue string) int {
 	return 0
 }
 
+func filterSelectOptions(options []SelectOption, query string) []SelectOption {
+	filtered := make([]SelectOption, 0, len(options))
+	for _, option := range options {
+		if selectOptionMatchesQuery(option, query) {
+			filtered = append(filtered, option)
+		}
+	}
+	return filtered
+}
+
+func selectOptionMatchesQuery(option SelectOption, query string) bool {
+	query = strings.TrimSpace(strings.ToLower(query))
+	if query == "" {
+		return true
+	}
+
+	haystack := strings.ToLower(strings.Join([]string{
+		option.displayLabel(),
+		option.Result(),
+		option.Description,
+		option.Hint,
+	}, " "))
+	for _, token := range strings.Fields(query) {
+		if !strings.Contains(haystack, token) {
+			return false
+		}
+	}
+	return true
+}
+
 func (p *Prompter) enterRawMode() (func(), error) {
 	if !p.inputIsTerminal() {
 		return func() {}, nil
@@ -429,6 +538,35 @@ func (p *Prompter) readKey() (key, error) {
 		return keyUp, nil
 	default:
 		return keyUnknown, nil
+	}
+}
+
+type searchKeyPress struct {
+	key  key
+	char rune
+}
+
+func (p *Prompter) readSearchKey() (searchKeyPress, error) {
+	r, _, err := p.reader.ReadRune()
+	if err != nil {
+		return searchKeyPress{key: keyUnknown}, err
+	}
+
+	switch r {
+	case '\r', '\n':
+		return searchKeyPress{key: keyEnter}, nil
+	case 3:
+		return searchKeyPress{key: keyCancel}, nil
+	case 8, 127:
+		return searchKeyPress{key: keyBackspace}, nil
+	case 27:
+		pressed, err := p.readEscapeKey()
+		return searchKeyPress{key: pressed}, err
+	default:
+		if unicode.IsPrint(r) {
+			return searchKeyPress{key: keyUnknown, char: r}, nil
+		}
+		return searchKeyPress{key: keyUnknown}, nil
 	}
 }
 

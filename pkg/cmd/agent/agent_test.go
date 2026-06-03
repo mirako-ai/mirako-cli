@@ -205,12 +205,12 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 	cmd := newCreateCmd()
 	prompter := &fakeAgentPrompter{
 		selects: map[string]string{
-			"Agent type": managedAgentRuntimeKind,
+			"Agent type":           managedAgentRuntimeKind,
+			"Choose avatar":        "avatar-1",
+			"Choose voice profile": "voice-1",
 		},
 		inputs: map[string]string{
 			"Agent name":                  "Managed Agent",
-			"Avatar ID":                   "avatar-1",
-			"Voice profile ID":            "voice-1",
 			"Description (optional)":      "Helpful managed agent",
 			"Interactive model":           "metis-2.5",
 			"Tools JSON array (optional)": `[{"type":"function","name":"search"}]`,
@@ -219,13 +219,23 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 			instructionFilePromptLabel: instructionFile,
 		},
 	}
+	selectionProvider := &fakeAgentSelectionProvider{
+		avatarOptions: []promptui.SelectOption{{Label: "Avatar One", Value: "avatar-1", Hint: "avatar-1"}},
+		voiceOptions:  []promptui.SelectOption{{Label: "Voice One", Value: "voice-1", Hint: "voice-1"}},
+	}
 
-	body, err := buildCreateAgentBody(cmd, prompter, true)
+	body, err := buildCreateAgentBody(cmd, prompter, true, selectionProvider)
 	if err != nil {
 		t.Fatalf("buildCreateAgentBody() returned error: %v", err)
 	}
 	if len(prompter.calls) == 0 || prompter.calls[0] != "select:Agent type" {
 		t.Fatalf("expected first prompt to ask for agent type, got calls %v", prompter.calls)
+	}
+	if !containsCall(prompter.calls, "search-select:Choose avatar") || !containsCall(prompter.calls, "search-select:Choose voice profile") {
+		t.Fatalf("expected avatar and voice selector prompts, got calls %v", prompter.calls)
+	}
+	if len(prompter.selectOptions["Choose avatar"]) != 1 || prompter.selectOptions["Choose avatar"][0].Value != "avatar-1" {
+		t.Fatalf("expected avatar selector options from provider, got %+v", prompter.selectOptions["Choose avatar"])
 	}
 	if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindManagedAgent {
 		t.Fatalf("runtime kind = %v, want managed_agent", body.RuntimeKind)
@@ -252,12 +262,12 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 	cmd := newCreateCmd()
 	prompter := &fakeAgentPrompter{
 		selects: map[string]string{
-			"Agent type": customAgentRuntimeKind,
+			"Agent type":           customAgentRuntimeKind,
+			"Choose avatar":        "avatar-1",
+			"Choose voice profile": "voice-1",
 		},
 		inputs: map[string]string{
 			"Agent name":        "Custom Agent",
-			"Avatar ID":         "avatar-1",
-			"Voice profile ID":  "voice-1",
 			"Interactive model": "metis-2.5",
 			"Custom agent URL":  "https://agent.example.test/api/chat",
 		},
@@ -265,13 +275,20 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 			"Custom agent bearer token (optional)": "super-secret-token",
 		},
 	}
+	selectionProvider := &fakeAgentSelectionProvider{
+		avatarOptions: []promptui.SelectOption{{Label: "Avatar One", Value: "avatar-1", Hint: "avatar-1"}},
+		voiceOptions:  []promptui.SelectOption{{Label: "Voice One", Value: "voice-1", Hint: "voice-1"}},
+	}
 
-	body, err := buildCreateAgentBody(cmd, prompter, true)
+	body, err := buildCreateAgentBody(cmd, prompter, true, selectionProvider)
 	if err != nil {
 		t.Fatalf("buildCreateAgentBody() returned error: %v", err)
 	}
 	if len(prompter.calls) == 0 || prompter.calls[0] != "select:Agent type" {
 		t.Fatalf("expected first prompt to ask for agent type, got calls %v", prompter.calls)
+	}
+	if !containsCall(prompter.calls, "search-select:Choose avatar") || !containsCall(prompter.calls, "search-select:Choose voice profile") {
+		t.Fatalf("expected avatar and voice selector prompts, got calls %v", prompter.calls)
 	}
 	if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindCustomAgent {
 		t.Fatalf("runtime kind = %v, want custom_agent", body.RuntimeKind)
@@ -351,7 +368,7 @@ func TestBuildCreateAgentBodyCustomBearerTokenFile(t *testing.T) {
 		"custom-agent-bearer-token-file": tokenFile,
 	})
 
-	body, err := buildCreateAgentBody(cmd, &fakeAgentPrompter{}, false)
+	body, err := buildCreateAgentBody(cmd, &fakeAgentPrompter{}, false, nil)
 	if err != nil {
 		t.Fatalf("buildCreateAgentBody() returned error: %v", err)
 	}
@@ -751,7 +768,7 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runCreate() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "Runtime Kind: managed_agent") {
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-1") {
 			t.Fatalf("expected create output to contain managed success details, got %q", output)
 		}
 		if strings.Contains(output, "LLM Model:") {
@@ -827,8 +844,109 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			t.Fatalf("runCreate() returned error: %v", err)
 		}
 		assertNoSecret(t, output)
-		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "custom-agent-1") || !strings.Contains(output, "Custom Agent Bearer Token Configured: true") {
-			t.Fatalf("expected custom create output to contain success details and token status, got %q", output)
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "custom-agent-1") {
+			t.Fatalf("expected custom create output to contain success details, got %q", output)
+		}
+	})
+
+	t.Run("interactive create uses avatar and voice selectors", func(t *testing.T) {
+		instructionFile := filepath.Join(t.TempDir(), "instruction.md")
+		if err := os.WriteFile(instructionFile, []byte("Be helpful"), 0644); err != nil {
+			t.Fatalf("failed to write instruction file: %v", err)
+		}
+
+		oldTTY := stdinIsTTY
+		stdinIsTTY = func() bool { return true }
+		t.Cleanup(func() { stdinIsTTY = oldTTY })
+
+		prompter := &fakeAgentPrompter{
+			selects: map[string]string{
+				"Agent type":           managedAgentRuntimeKind,
+				"Choose avatar":        "avatar-2",
+				"Choose voice profile": "voice-custom",
+			},
+			inputs: map[string]string{
+				"Agent name": "Selector Agent",
+			},
+			pathInputs: map[string]string{
+				instructionFilePromptLabel: instructionFile,
+			},
+		}
+		oldPrompter := defaultAgentPrompter
+		defaultAgentPrompter = prompter
+		t.Cleanup(func() { defaultAgentPrompter = oldPrompter })
+
+		var sawAvatarList, sawPremadeVoiceList, sawCustomVoiceList bool
+		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			switch r.URL.Path {
+			case "/v1/avatar/list":
+				if !assertRequest(t, r, http.MethodGet, "/v1/avatar/list") {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				sawAvatarList = true
+				writeJSON(w, http.StatusOK, `{"data":[{"id":"avatar-1","name":"Avatar One","status":"PENDING","supported_interactive_models":["metis-2.5"],"user_id":"user-1","created_at":"2026-05-25T00:00:00Z"},{"id":"avatar-2","name":"Avatar Two","status":"READY","supported_interactive_models":["metis-2.5"],"user_id":"user-1","created_at":"2026-05-25T00:00:00Z"}]}`)
+			case "/v1/voice/premade_profiles":
+				if !assertRequest(t, r, http.MethodGet, "/v1/voice/premade_profiles") {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				sawPremadeVoiceList = true
+				writeJSON(w, http.StatusOK, `{"data":[{"id":"voice-premade","name":"Premade Voice","description":"Warm","is_premade":true,"languages":["en"],"status":"READY"}]}`)
+			case "/v1/voice/profiles":
+				if !assertRequest(t, r, http.MethodGet, "/v1/voice/profiles") {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				sawCustomVoiceList = true
+				writeJSON(w, http.StatusOK, `{"data":[{"id":"voice-custom","name":"Custom Voice","description":"Mine","is_premade":false,"languages":["en"],"status":"READY","user_id":"user-1"}]}`)
+			case "/v1/agents":
+				if !assertRequest(t, r, http.MethodPost, "/v1/agents") {
+					http.Error(w, "unexpected request", http.StatusBadRequest)
+					return
+				}
+				bodyBytes, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Errorf("failed to read request body: %v", err)
+					http.Error(w, "invalid request body", http.StatusBadRequest)
+					return
+				}
+				var raw map[string]any
+				if err := json.Unmarshal(bodyBytes, &raw); err != nil {
+					t.Errorf("failed to decode request body: %v", err)
+					http.Error(w, "invalid request body", http.StatusBadRequest)
+					return
+				}
+				if raw["avatar_id"] != "avatar-2" || raw["voice_profile_id"] != "voice-custom" {
+					t.Errorf("selector IDs were not submitted: %s", string(bodyBytes))
+					http.Error(w, "unexpected selector IDs", http.StatusBadRequest)
+					return
+				}
+				writeJSON(w, http.StatusCreated, `{"data":{"id":"agent-selector","user_id":"user-1","name":"Selector Agent","avatar_id":"avatar-2","voice_profile_id":"voice-custom","model":"metis-2.5","instruction":"Be helpful","tools":[],"runtime_kind":"managed_agent","has_custom_agent_bearer_token":false,"created_at":"2026-05-25T00:00:00Z","updated_at":"2026-05-25T00:01:00Z"}}`)
+			default:
+				http.NotFound(w, r)
+			}
+		})
+		configureAgentTest(t, server.URL)
+
+		cmd := newCreateCmd()
+		cmd.SetContext(context.Background())
+		output, err := captureStdout(t, func() error { return runCreate(cmd, nil) })
+		if err != nil {
+			t.Fatalf("runCreate() returned error: %v", err)
+		}
+		if !sawAvatarList || !sawPremadeVoiceList || !sawCustomVoiceList {
+			t.Fatalf("expected selector list endpoints to be called: avatar=%t premade=%t custom=%t", sawAvatarList, sawPremadeVoiceList, sawCustomVoiceList)
+		}
+		avatarOptions := prompter.selectOptions["Choose avatar"]
+		if len(avatarOptions) != 1 || avatarOptions[0].Value != "avatar-2" || avatarOptions[0].Description != "" {
+			t.Fatalf("expected only ready avatar option without second-line detail, got %+v", avatarOptions)
+		}
+		if len(prompter.selectOptions["Choose voice profile"]) != 2 {
+			t.Fatalf("expected combined premade and custom voice options, got %+v", prompter.selectOptions["Choose voice profile"])
+		}
+		if !strings.Contains(output, "Agent created successfully") || !strings.Contains(output, "agent-selector") {
+			t.Fatalf("expected interactive create success output, got %q", output)
 		}
 	})
 
@@ -1009,6 +1127,26 @@ func (p *fakeAgentPrompter) Select(message string, options []promptui.SelectOpti
 	return defaultValue, nil
 }
 
+func (p *fakeAgentPrompter) SearchSelect(message string, options []promptui.SelectOption, defaultValue string) (string, error) {
+	p.calls = append(p.calls, "search-select:"+message)
+	if p.selectOptions == nil {
+		p.selectOptions = map[string][]promptui.SelectOption{}
+	}
+	p.selectOptions[message] = append([]promptui.SelectOption(nil), options...)
+	if p.selects != nil {
+		if answer, ok := p.selects[message]; ok {
+			return answer, nil
+		}
+	}
+	if defaultValue != "" {
+		return defaultValue, nil
+	}
+	if len(options) > 0 {
+		return options[0].Result(), nil
+	}
+	return "", nil
+}
+
 func (p *fakeAgentPrompter) Input(message string, defaultValue string, required bool) (string, error) {
 	p.calls = append(p.calls, "input:"+message)
 	if p.inputs != nil {
@@ -1037,4 +1175,25 @@ func (p *fakeAgentPrompter) Password(message string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+type fakeAgentSelectionProvider struct {
+	avatarOptions []promptui.SelectOption
+	voiceOptions  []promptui.SelectOption
+	avatarErr     error
+	voiceErr      error
+}
+
+func (p *fakeAgentSelectionProvider) AvatarOptions(ctx context.Context) ([]promptui.SelectOption, error) {
+	if p.avatarErr != nil {
+		return nil, p.avatarErr
+	}
+	return append([]promptui.SelectOption(nil), p.avatarOptions...), nil
+}
+
+func (p *fakeAgentSelectionProvider) VoiceProfileOptions(ctx context.Context) ([]promptui.SelectOption, error) {
+	if p.voiceErr != nil {
+		return nil, p.voiceErr
+	}
+	return append([]promptui.SelectOption(nil), p.voiceOptions...), nil
 }

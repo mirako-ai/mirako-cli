@@ -35,6 +35,30 @@ func TestRendererRenderSelectShowsDescriptionsAndSymbols(t *testing.T) {
 	}
 }
 
+func TestRendererRenderSearchSelectShowsSearchAndWindow(t *testing.T) {
+	renderer := NewRenderer(PlainTheme())
+	output := renderer.RenderSearchSelect("Choose voice profile", []SelectOption{
+		{Label: "Premade Voice", Value: "voice-premade", Hint: "voice-premade", Description: "premade • en"},
+		{Label: "Custom Voice", Value: "voice-custom", Hint: "voice-custom", Description: "custom • en"},
+		{Label: "Other Voice", Value: "voice-other", Hint: "voice-other"},
+	}, 1, "voice", 2)
+
+	for _, want := range []string{
+		"── Choose voice profile ──",
+		"│ Search: voice",
+		"│ ↑/↓ move, type to filter, enter confirm",
+		"│   ○ Premade Voice (voice-premade)",
+		"│ ❯ ● Custom Voice (voice-custom)",
+		"│     custom • en",
+		"│ ↓ 1 more",
+		"└",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("RenderSearchSelect() missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
 func TestRendererRenderInputAndSubmitted(t *testing.T) {
 	renderer := NewRenderer(PlainTheme())
 	input := renderer.RenderInput("Interactive model", "metis-2.5")
