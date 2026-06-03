@@ -131,10 +131,7 @@ func runList(cmd *cobra.Command, args []string) error {
 			agent.Name,
 			agent.Id,
 			agent.RuntimeKind,
-			agent.AvatarId,
-			agent.VoiceProfileId,
 			agent.Model,
-			agent.HasCustomAgentBearerToken,
 			ui.FormatTimestamp(agent.UpdatedAt),
 		})
 	}

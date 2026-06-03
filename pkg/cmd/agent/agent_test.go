@@ -605,8 +605,19 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runList() returned error: %v", err)
 		}
-		if !strings.Contains(output, "Agent One") || !strings.Contains(output, "agent-1") || !strings.Contains(output, "custom_agent") || !strings.Contains(output, "true") {
-			t.Fatalf("expected list output to contain agent details and token status, got %q", output)
+		lines := strings.Split(strings.TrimSpace(output), "\n")
+		if len(lines) < 3 {
+			t.Fatalf("expected list output to include header and two rows, got %q", output)
+		}
+		if got, want := strings.Join(strings.Fields(lines[0]), " "), "NAME ID RUNTIME MODEL UPDATED"; got != want {
+			t.Fatalf("list header = %q, want %q; full output %q", got, want, output)
+		}
+		assertContainsInOrder(t, lines[1], "Agent One", "agent-1", "managed_agent", "metis-2.5", "2026-")
+		assertContainsInOrder(t, lines[2], "Custom Agent", "custom-agent-1", "custom_agent", "metis-2.5", "2026-")
+		for _, removed := range []string{"AVATAR ID", "VOICE ID", "CUSTOM TOKEN", "avatar-1", "voice-1", "true"} {
+			if strings.Contains(output, removed) {
+				t.Fatalf("list output should not contain removed column/value %q; got %q", removed, output)
+			}
 		}
 	})
 
@@ -1078,6 +1089,18 @@ func assertNoSecret(t *testing.T, output string) {
 	t.Helper()
 	if strings.Contains(output, "super-secret-token") {
 		t.Fatalf("output leaked bearer token: %q", output)
+	}
+}
+
+func assertContainsInOrder(t *testing.T, output string, parts ...string) {
+	t.Helper()
+	searchFrom := 0
+	for _, part := range parts {
+		index := strings.Index(output[searchFrom:], part)
+		if index < 0 {
+			t.Fatalf("expected %q to contain %q after byte offset %d", output, part, searchFrom)
+		}
+		searchFrom += index + len(part)
 	}
 }
 
