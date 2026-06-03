@@ -196,6 +196,12 @@ func TestRunCreateValidation(t *testing.T) {
 }
 
 func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
+	instructionFile := filepath.Join(t.TempDir(), "instruction.md")
+	instruction := "Be helpful\nUse tools wisely."
+	if err := os.WriteFile(instructionFile, []byte(instruction), 0644); err != nil {
+		t.Fatalf("failed to write instruction file: %v", err)
+	}
+
 	cmd := newCreateCmd()
 	prompter := &fakeAgentPrompter{
 		selects: map[string]string{
@@ -207,10 +213,8 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 			"Voice profile ID":            "voice-1",
 			"Description (optional)":      "Helpful managed agent",
 			"Interactive model":           "metis-2.5",
+			instructionFilePromptLabel:    instructionFile,
 			"Tools JSON array (optional)": `[{"type":"function","name":"search"}]`,
-		},
-		multilines: map[string]string{
-			"Instruction prompt": "Be helpful",
 		},
 	}
 
@@ -228,8 +232,14 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 		t.Fatalf("unexpected common fields: %+v", body)
 	}
 	assertJSONFieldAbsent(t, body, "llm_model")
-	if body.Instruction == nil || *body.Instruction != "Be helpful" {
-		t.Fatalf("instruction = %v, want Be helpful", body.Instruction)
+	if body.Instruction == nil || *body.Instruction != instruction {
+		t.Fatalf("instruction = %v, want %q", body.Instruction, instruction)
+	}
+	if !containsCall(prompter.calls, "input:"+instructionFilePromptLabel) {
+		t.Fatalf("expected instruction file path input prompt, got calls %v", prompter.calls)
+	}
+	if containsCallPrefix(prompter.calls, "multiline:") {
+		t.Fatalf("instruction must not use a multiline paste prompt, got calls %v", prompter.calls)
 	}
 	if body.Tools == nil || len(*body.Tools) != 1 {
 		t.Fatalf("tools = %v, want one tool", body.Tools)
@@ -354,6 +364,10 @@ func TestResolveInstruction(t *testing.T) {
 	if err := os.WriteFile(instructionFile, []byte("File instruction"), 0644); err != nil {
 		t.Fatalf("failed to write instruction file: %v", err)
 	}
+	emptyInstructionFile := filepath.Join(tmpDir, "empty.txt")
+	if err := os.WriteFile(emptyInstructionFile, []byte("\n\t  \n"), 0644); err != nil {
+		t.Fatalf("failed to write empty instruction file: %v", err)
+	}
 
 	tests := []struct {
 		name          string
@@ -385,6 +399,24 @@ func TestResolveInstruction(t *testing.T) {
 			file:          filepath.Join(tmpDir, "missing.md"),
 			expectError:   true,
 			errorContains: "failed to read instruction file",
+		},
+		{
+			name:          "empty instruction file",
+			file:          emptyInstructionFile,
+			expectError:   true,
+			errorContains: "instruction file is empty",
+		},
+		{
+			name:          "instruction file path is a directory",
+			file:          tmpDir,
+			expectError:   true,
+			errorContains: "must point to a file",
+		},
+		{
+			name:          "blank instruction file flag",
+			file:          " \t ",
+			expectError:   true,
+			errorContains: "instruction file path is required",
 		},
 	}
 
@@ -923,11 +955,28 @@ func captureStdout(t *testing.T, fn func() error) (string, error) {
 	return string(output), fnErr
 }
 
+func containsCall(calls []string, want string) bool {
+	for _, call := range calls {
+		if call == want {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCallPrefix(calls []string, prefix string) bool {
+	for _, call := range calls {
+		if strings.HasPrefix(call, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 type fakeAgentPrompter struct {
 	selects       map[string]string
 	selectOptions map[string][]promptui.SelectOption
 	inputs        map[string]string
-	multilines    map[string]string
 	passwords     map[string]string
 	calls         []string
 }
@@ -950,16 +999,6 @@ func (p *fakeAgentPrompter) Input(message string, defaultValue string, required 
 	p.calls = append(p.calls, "input:"+message)
 	if p.inputs != nil {
 		if answer, ok := p.inputs[message]; ok {
-			return answer, nil
-		}
-	}
-	return defaultValue, nil
-}
-
-func (p *fakeAgentPrompter) Multiline(message string, defaultValue string, required bool) (string, error) {
-	p.calls = append(p.calls, "multiline:"+message)
-	if p.multilines != nil {
-		if answer, ok := p.multilines[message]; ok {
 			return answer, nil
 		}
 	}
