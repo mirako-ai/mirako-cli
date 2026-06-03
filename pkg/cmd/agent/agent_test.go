@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -307,6 +308,77 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 	assertJSONFieldAbsent(t, body, "llm_model")
 	if body.Instruction != nil || body.Tools != nil {
 		t.Fatalf("custom agents must not include managed fields: %+v", body)
+	}
+}
+
+func TestCreateCommandPrintsCleanCancelledOnPromptCancellation(t *testing.T) {
+	oldTTY := stdinIsTTY
+	stdinIsTTY = func() bool { return true }
+	t.Cleanup(func() { stdinIsTTY = oldTTY })
+
+	oldPrompter := defaultAgentPrompter
+	defaultAgentPrompter = &fakeAgentPrompter{
+		selectErrs: map[string]error{
+			"Agent type": promptui.ErrCancelled,
+		},
+	}
+	t.Cleanup(func() { defaultAgentPrompter = oldPrompter })
+
+	cmd := newCreateCmd()
+	cmd.SetArgs([]string{})
+	cmd.SilenceUsage = true
+	var stderr strings.Builder
+	cmd.SetErr(&stderr)
+	setFlags(t, cmd, map[string]string{
+		"avatar": "avatar-1",
+		"voice":  "voice-1",
+	})
+
+	err := cmd.Execute()
+	if !errors.Is(err, promptui.ErrCancelled) {
+		t.Fatalf("Execute() error = %v, want prompt cancellation", err)
+	}
+	if got := stderr.String(); got != "Cancelled\n" {
+		t.Fatalf("stderr = %q, want clean Cancelled output", got)
+	}
+}
+
+func TestCreateCommandPreservesNonCancellationPromptErrors(t *testing.T) {
+	oldTTY := stdinIsTTY
+	stdinIsTTY = func() bool { return true }
+	t.Cleanup(func() { stdinIsTTY = oldTTY })
+
+	promptErr := errors.New("selector failed")
+	oldPrompter := defaultAgentPrompter
+	defaultAgentPrompter = &fakeAgentPrompter{
+		selectErrs: map[string]error{
+			"Agent type": promptErr,
+		},
+	}
+	t.Cleanup(func() { defaultAgentPrompter = oldPrompter })
+
+	cmd := newCreateCmd()
+	cmd.SetArgs([]string{})
+	cmd.SilenceUsage = true
+	var stderr strings.Builder
+	cmd.SetErr(&stderr)
+	setFlags(t, cmd, map[string]string{
+		"avatar": "avatar-1",
+		"voice":  "voice-1",
+	})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected prompt error but got nil")
+	}
+	if !errors.Is(err, promptErr) || !strings.Contains(err.Error(), "error getting agent type: selector failed") {
+		t.Fatalf("Execute() error = %v, want wrapped prompt error", err)
+	}
+	if got := stderr.String(); !strings.Contains(got, "Error: error getting agent type: selector failed") {
+		t.Fatalf("stderr = %q, want Cobra error output for non-cancellation error", got)
+	}
+	if strings.Contains(stderr.String(), "Cancelled") {
+		t.Fatalf("non-cancellation prompt error must not print Cancelled: %q", stderr.String())
 	}
 }
 
@@ -1208,6 +1280,7 @@ func containsCallPrefix(calls []string, prefix string) bool {
 
 type fakeAgentPrompter struct {
 	selects       map[string]string
+	selectErrs    map[string]error
 	selectOptions map[string][]promptui.SelectOption
 	inputs        map[string]string
 	pathInputs    map[string]string
@@ -1221,6 +1294,11 @@ func (p *fakeAgentPrompter) Select(message string, options []promptui.SelectOpti
 		p.selectOptions = map[string][]promptui.SelectOption{}
 	}
 	p.selectOptions[message] = append([]promptui.SelectOption(nil), options...)
+	if p.selectErrs != nil {
+		if err, ok := p.selectErrs[message]; ok {
+			return "", err
+		}
+	}
 	if p.selects != nil {
 		if answer, ok := p.selects[message]; ok {
 			return answer, nil

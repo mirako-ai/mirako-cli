@@ -2,6 +2,7 @@ package agent
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -11,7 +12,7 @@ import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/config"
-	"github.com/mirako-ai/mirako-cli/internal/errors"
+	apierrors "github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	promptui "github.com/mirako-ai/mirako-cli/pkg/ui/prompt"
@@ -229,7 +230,7 @@ func newCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create an agent",
 		Long:  `Create a persistent managed or custom agent configuration using an avatar and voice profile`,
-		RunE:  runCreate,
+		RunE:  runCreateCommand,
 	}
 
 	cmd.Flags().StringP("name", "n", "", "Name for the agent")
@@ -249,6 +250,19 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	return cmd
+}
+
+func runCreateCommand(cmd *cobra.Command, args []string) error {
+	err := runCreate(cmd, args)
+	if isPromptCancelled(err) {
+		cmd.SilenceErrors = true
+		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "Cancelled")
+	}
+	return err
+}
+
+func isPromptCancelled(err error) bool {
+	return errors.Is(err, promptui.ErrCancelled)
 }
 
 func runCreate(cmd *cobra.Command, args []string) error {
@@ -907,7 +921,7 @@ func defaultIfEmpty(value, defaultValue string) string {
 }
 
 func formatAPIError(err error, fallback string) error {
-	if apiErr, ok := errors.IsAPIError(err); ok {
+	if apiErr, ok := apierrors.IsAPIError(err); ok {
 		return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
 	}
 	return fmt.Errorf("%s: %w", fallback, err)
