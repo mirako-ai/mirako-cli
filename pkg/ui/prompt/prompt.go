@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"golang.org/x/term"
 )
 
@@ -24,6 +23,13 @@ const (
 	keyUp
 	keyDown
 	keyCancel
+)
+
+const (
+	bracketedPasteStart   = "\x1b[200~"
+	bracketedPasteEnd     = "\x1b[201~"
+	bracketedPasteEnable  = "\x1b[?2004h"
+	bracketedPasteDisable = "\x1b[?2004l"
 )
 
 // Prompter contains reusable prompt components backed by small terminal helpers.
@@ -216,54 +222,35 @@ func (p *Prompter) Password(label string) (string, error) {
 	return answer, nil
 }
 
-// Multiline wraps the existing survey multiline behavior for TTY usage and
-// falls back to a simple line reader for non-terminal tests.
+// Multiline reads lines in canonical terminal mode until two consecutive empty
+// lines or EOF. Avoiding raw-mode per-rune reads keeps large clipboard pastes
+// from overflowing terminal/tmux input queues before the prompt can consume
+// them.
 func (p *Prompter) Multiline(label string, defaultValue string, required bool) (string, error) {
-	if p.inputIsTerminal() {
-		var answer string
-		prompt := &survey.Multiline{Message: label, Default: defaultValue}
-		if err := survey.AskOne(prompt, &answer, surveyAskOptions(required)...); err != nil {
-			return "", err
-		}
-		return answer, nil
-	}
+	restoreBracketedPaste := p.enableBracketedPaste()
+	defer restoreBracketedPaste()
 	return p.MultilineFallback(label, defaultValue, required)
 }
 
-// MultilineFallback reads lines until an empty line or EOF. It is primarily
-// intended for tests and non-TTY prompt harnesses.
+// MultilineFallback reads lines until two consecutive empty lines or EOF. It is
+// primarily intended for tests and non-TTY prompt harnesses.
 func (p *Prompter) MultilineFallback(label string, defaultValue string, required bool) (string, error) {
 	for {
-		if _, err := fmt.Fprint(p.output, p.renderer.RenderInput(label, defaultValue)); err != nil {
+		if _, err := fmt.Fprint(p.output, p.renderer.RenderMultilineInput(label, defaultValue)); err != nil {
 			return "", err
 		}
 
-		var lines []string
-		for {
-			line, err := p.readLine()
-			if err != nil && !(errors.Is(err, io.EOF) && line != "") {
-				if errors.Is(err, io.EOF) && len(lines) > 0 {
-					break
-				}
-				return "", err
-			}
-			if line == "" {
-				break
-			}
-			lines = append(lines, line)
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			if _, err := fmt.Fprintf(p.output, "%s ", p.renderer.Theme.Accent(p.renderer.Theme.Symbols.Pointer)); err != nil {
-				return "", err
-			}
+		answer, reachedEOF, err := p.readMultilineAnswer()
+		if err != nil {
+			return "", err
 		}
-
-		answer := strings.Join(lines, "\n")
 		if strings.TrimSpace(answer) == "" && defaultValue != "" {
 			answer = defaultValue
 		}
 		if required && strings.TrimSpace(answer) == "" {
+			if reachedEOF {
+				return "", io.EOF
+			}
 			if _, err := fmt.Fprint(p.output, p.renderer.RenderValidationError("This value is required.")); err != nil {
 				return "", err
 			}
@@ -273,6 +260,100 @@ func (p *Prompter) MultilineFallback(label string, defaultValue string, required
 			return "", err
 		}
 		return answer, nil
+	}
+}
+
+func (p *Prompter) readMultilineAnswer() (string, bool, error) {
+	var lines []string
+	pendingEmptyLines := 0
+	inBracketedPaste := false
+	reachedEOF := false
+
+	flushPendingEmptyLines := func() {
+		for pendingEmptyLines > 0 {
+			lines = append(lines, "")
+			pendingEmptyLines--
+		}
+	}
+
+	for {
+		line, err := p.readLine()
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				return "", reachedEOF, err
+			}
+			reachedEOF = true
+			if line == "" {
+				if len(lines) == 0 && pendingEmptyLines == 0 {
+					return "", reachedEOF, io.EOF
+				}
+				break
+			}
+		}
+
+		line, lineInBracketedPaste := stripBracketedPasteMarkers(line, &inBracketedPaste)
+		if line == "" && !lineInBracketedPaste {
+			pendingEmptyLines++
+			if pendingEmptyLines >= 2 {
+				break
+			}
+		} else {
+			flushPendingEmptyLines()
+			lines = append(lines, line)
+		}
+
+		if reachedEOF {
+			break
+		}
+		if err := p.writeMultilineContinuation(lineInBracketedPaste); err != nil {
+			return "", reachedEOF, err
+		}
+	}
+
+	if reachedEOF {
+		flushPendingEmptyLines()
+	}
+
+	return strings.Join(lines, "\n"), reachedEOF, nil
+}
+
+func stripBracketedPasteMarkers(line string, inPaste *bool) (string, bool) {
+	lineInBracketedPaste := *inPaste
+	for {
+		start := strings.Index(line, bracketedPasteStart)
+		end := strings.Index(line, bracketedPasteEnd)
+		switch {
+		case start == -1 && end == -1:
+			return line, lineInBracketedPaste || *inPaste
+		case start != -1 && (end == -1 || start < end):
+			line = line[:start] + line[start+len(bracketedPasteStart):]
+			*inPaste = true
+			lineInBracketedPaste = true
+		default:
+			line = line[:end] + line[end+len(bracketedPasteEnd):]
+			*inPaste = false
+			lineInBracketedPaste = true
+		}
+	}
+}
+
+func (p *Prompter) writeMultilineContinuation(lineInBracketedPaste bool) error {
+	if lineInBracketedPaste {
+		return nil
+	}
+	_, err := fmt.Fprintf(p.output, "%s ", p.renderer.Theme.Accent(p.renderer.Theme.Symbols.Pointer))
+	return err
+}
+
+func (p *Prompter) enableBracketedPaste() func() {
+	if !p.inputIsTerminal() || !p.outputIsTerminal() {
+		return func() {}
+	}
+	if _, err := fmt.Fprint(p.output, bracketedPasteEnable); err != nil {
+		return func() {}
+	}
+	return func() {
+		_, _ = fmt.Fprint(p.output, bracketedPasteDisable)
 	}
 }
 
@@ -510,11 +591,4 @@ func writerFileDescriptor(writer io.Writer) int {
 		return -1
 	}
 	return int(file.Fd())
-}
-
-func surveyAskOptions(required bool) []survey.AskOpt {
-	if !required {
-		return nil
-	}
-	return []survey.AskOpt{survey.WithValidator(survey.Required)}
 }
