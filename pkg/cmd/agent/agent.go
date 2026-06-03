@@ -212,7 +212,8 @@ func printAgentDetails(agent api.AgentResponse) error {
 }
 
 func printViewField(label, value string) {
-	fmt.Printf("◆ %s\n", promptui.DefaultTheme().Bold(label))
+	theme := promptui.DefaultTheme()
+	fmt.Printf("%s %s\n", theme.Accent(theme.Symbols.ActiveStep), theme.Bold(label))
 	fmt.Printf("  %s\n\n", formatViewValue(value))
 }
 

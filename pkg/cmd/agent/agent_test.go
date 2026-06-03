@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fatih/color"
 	promptui "github.com/mirako-ai/mirako-cli/pkg/ui/prompt"
 	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
@@ -648,6 +649,8 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 	})
 
 	t.Run("view managed agent", func(t *testing.T) {
+		forceColor(t)
+
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			if !assertRequest(t, r, http.MethodGet, "/v1/agents/agent-1") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
@@ -664,6 +667,7 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			t.Fatalf("runView() returned error: %v", err)
 		}
 		assertFieldOnSeparateLines(t, output, "ID", "agent-1")
+		assertFieldUsesAccentBulletAndBoldLabel(t, output, "ID")
 		assertFieldOnSeparateLines(t, output, "Description", "Helpful agent")
 		assertFieldOnSeparateLines(t, output, "Instruction", "Be helpful")
 		assertFieldOnSeparateLines(t, output, "Tools", "[")
@@ -1086,6 +1090,15 @@ func forceNonInteractive(t *testing.T) {
 	t.Cleanup(func() { stdinIsTTY = old })
 }
 
+func forceColor(t *testing.T) {
+	t.Helper()
+
+	oldNoColor := color.NoColor
+	color.NoColor = false
+	t.Setenv("NO_COLOR", "")
+	t.Cleanup(func() { color.NoColor = oldNoColor })
+}
+
 func assertNoSecret(t *testing.T, output string) {
 	t.Helper()
 	if strings.Contains(output, "super-secret-token") {
@@ -1111,6 +1124,14 @@ func assertFieldOnSeparateLines(t *testing.T, output, label, value string) {
 	want := fmt.Sprintf("◆ %s\n  %s", label, value)
 	if !strings.Contains(normalized, want) {
 		t.Fatalf("expected output to contain marker field %q and value %q on separate lines; got %q", label, value, output)
+	}
+}
+
+func assertFieldUsesAccentBulletAndBoldLabel(t *testing.T, output, label string) {
+	t.Helper()
+	want := "\x1b[36m◆\x1b[0m \x1b[1m" + label + "\x1b[22m"
+	if !strings.Contains(output, want) {
+		t.Fatalf("expected output to contain accent marker and bold label %q; got %q", label, output)
 	}
 }
 

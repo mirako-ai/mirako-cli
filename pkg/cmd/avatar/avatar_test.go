@@ -8,10 +8,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fatih/color"
 	"github.com/mirako-ai/mirako-go/api"
 )
 
 func TestPrintAvatarDetailsRestyled(t *testing.T) {
+	forceColor(t)
+
 	models := []string{"metis-2.5", "metis-3.0"}
 	keyImage := "https://example.test/key.png"
 	liveVideo := "https://example.test/live.mp4"
@@ -37,6 +40,7 @@ func TestPrintAvatarDetailsRestyled(t *testing.T) {
 	})
 
 	assertAvatarFieldOnSeparateLines(t, output, "ID", "avatar-1")
+	assertAvatarFieldUsesAccentBulletAndBoldLabel(t, output, "ID")
 	assertAvatarFieldOnSeparateLines(t, output, "Name", "Avatar One")
 	assertAvatarFieldOnSeparateLines(t, output, "Status", "READY")
 	assertAvatarFieldOnSeparateLines(t, output, "User ID", "user-1")
@@ -83,6 +87,15 @@ func TestFormatSupportedInteractiveModels(t *testing.T) {
 	}
 }
 
+func forceColor(t *testing.T) {
+	t.Helper()
+
+	oldNoColor := color.NoColor
+	color.NoColor = false
+	t.Setenv("NO_COLOR", "")
+	t.Cleanup(func() { color.NoColor = oldNoColor })
+}
+
 func captureStdout(t *testing.T, fn func()) string {
 	t.Helper()
 
@@ -115,6 +128,14 @@ func assertAvatarFieldOnSeparateLines(t *testing.T, output, label, value string)
 	want := "◆ " + label + "\n  " + value
 	if !strings.Contains(normalized, want) {
 		t.Fatalf("expected output to contain marker field %q and value %q on separate lines; got %q", label, value, output)
+	}
+}
+
+func assertAvatarFieldUsesAccentBulletAndBoldLabel(t *testing.T, output, label string) {
+	t.Helper()
+	want := "\x1b[36m◆\x1b[0m \x1b[1m" + label + "\x1b[22m"
+	if !strings.Contains(output, want) {
+		t.Fatalf("expected output to contain accent marker and bold label %q; got %q", label, output)
 	}
 }
 
