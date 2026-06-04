@@ -1,0 +1,84 @@
+package prompt
+
+import (
+	"strings"
+	"testing"
+)
+
+func TestRendererRenderSelectShowsDescriptionsAndSymbols(t *testing.T) {
+	renderer := NewRenderer(PlainTheme())
+	output := renderer.RenderSelect("Agent type", []SelectOption{
+		{
+			Label:       "managed agent",
+			Value:       "managed_agent",
+			Description: "provide prompt, model/tools and host runtime on Mirako",
+		},
+		{
+			Label:       "custom agent",
+			Value:       "custom_agent",
+			Description: "integrate your existing agent endpoint",
+		},
+	}, 1)
+
+	for _, want := range []string{
+		"◆ Agent type",
+		"│   ○ managed agent",
+		"│     provide prompt, model/tools and host runtime on Mirako",
+		"│ ❯ ● custom agent",
+		"│     integrate your existing agent endpoint",
+		"│  Use ↑/↓ to choose, Enter to submit",
+		"└",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("RenderSelect() missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
+func TestRendererRenderSearchSelectShowsSearchAndWindow(t *testing.T) {
+	renderer := NewRenderer(PlainTheme())
+	output := renderer.RenderSearchSelect("Choose voice profile", []SelectOption{
+		{Label: "Premade Voice", Value: "voice-premade", Hint: "voice-premade", Description: "premade • en"},
+		{Label: "Custom Voice", Value: "voice-custom", Hint: "voice-custom", Description: "custom • en"},
+		{Label: "Other Voice", Value: "voice-other", Hint: "voice-other"},
+	}, 1, "voice", 2)
+
+	for _, want := range []string{
+		"── Choose voice profile ──",
+		"│ Search: voice",
+		"│ ↑/↓ move, type to filter, enter confirm",
+		"│   ○ Premade Voice (voice-premade)",
+		"│ ❯ ● Custom Voice (voice-custom)",
+		"│     custom • en",
+		"│ ↓ 1 more",
+		"└",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("RenderSearchSelect() missing %q in output:\n%s", want, output)
+		}
+	}
+}
+
+func TestRendererRenderInputAndSubmitted(t *testing.T) {
+	renderer := NewRenderer(PlainTheme())
+	input := renderer.RenderInput("Interactive model", "metis-2.5")
+	for _, want := range []string{"◆ Interactive model", "│  default: metis-2.5", "❯ "} {
+		if !strings.Contains(input, want) {
+			t.Fatalf("RenderInput() missing %q in output:\n%s", want, input)
+		}
+	}
+
+	multiline := renderer.RenderMultilineInput("Instruction prompt", "")
+	for _, want := range []string{"◆ Instruction prompt", "│  Enter two empty lines to finish; large pastes are supported.", "❯ "} {
+		if !strings.Contains(multiline, want) {
+			t.Fatalf("RenderMultilineInput() missing %q in output:\n%s", want, multiline)
+		}
+	}
+
+	submitted := renderer.RenderSubmitted("Interactive model", "metis-2.5")
+	for _, want := range []string{"◇ Interactive model", "│  metis-2.5", "│ \n"} {
+		if !strings.Contains(submitted, want) {
+			t.Fatalf("RenderSubmitted() missing %q in output:\n%s", want, submitted)
+		}
+	}
+}

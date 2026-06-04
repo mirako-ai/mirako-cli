@@ -100,7 +100,12 @@ func (c *Client) GetAgent(ctx context.Context, agentID string) (*api.GetAgentApi
 }
 
 func (c *Client) CreateAgent(ctx context.Context, body api.CreateAgentJSONRequestBody) (*api.CreateAgentApiResponseBody, error) {
-	resp, err := c.sdkClient.CreateAgent(ctx, body)
+	bodyBytes, err := marshalJSONOmitNullFields(body)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.sdkClient.CreateAgentWithBody(ctx, "application/json", bytes.NewReader(bodyBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -115,6 +120,37 @@ func (c *Client) CreateAgent(ctx context.Context, body api.CreateAgentJSONReques
 		return nil, err
 	}
 	return &result, nil
+}
+
+func marshalJSONOmitNullFields(value interface{}) ([]byte, error) {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return nil, err
+	}
+
+	var payload interface{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return nil, err
+	}
+	removeNullJSONFields(payload)
+	return json.Marshal(payload)
+}
+
+func removeNullJSONFields(value interface{}) {
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		for key, child := range typed {
+			if child == nil {
+				delete(typed, key)
+				continue
+			}
+			removeNullJSONFields(child)
+		}
+	case []interface{}:
+		for _, child := range typed {
+			removeNullJSONFields(child)
+		}
+	}
 }
 
 func (c *Client) DeleteAgent(ctx context.Context, agentID string) error {
