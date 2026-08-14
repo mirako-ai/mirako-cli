@@ -140,6 +140,60 @@ func (c *Client) CreateAgentRoute(ctx context.Context, agentID string, body api.
 	return &result, nil
 }
 
+func (c *Client) ListAgentRoutes(ctx context.Context, agentID string) (*api.ListAgentRoutesApiResponseBody, error) {
+	resp, err := c.sdkClient.ListAgentRoutes(ctx, agentID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "list agent routes"); err != nil {
+		return nil, err
+	}
+
+	var result api.ListAgentRoutesApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) GetAgentRoute(ctx context.Context, routeID string) (*api.GetAgentRouteApiResponseBody, error) {
+	resp, err := c.sdkClient.GetAgentRoute(ctx, routeID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "get agent route"); err != nil {
+		return nil, err
+	}
+
+	var result api.GetAgentRouteApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
+func (c *Client) RevokeAgentRoute(ctx context.Context, routeID string) (*api.RevokeAgentRouteApiResponseBody, error) {
+	resp, err := c.sdkClient.RevokeAgentRoute(ctx, routeID)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "revoke agent route"); err != nil {
+		return nil, err
+	}
+
+	var result api.RevokeAgentRouteApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func marshalJSONOmitNullFields(value interface{}) ([]byte, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
