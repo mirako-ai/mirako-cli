@@ -65,7 +65,7 @@ const testAgentRoutesListResponseJSON = `{
   "data": [
     {
       "id": "route-capability-2",
-      "agent_id": "agent-1",
+      "agent_id": "agent-2",
       "label": null,
       "expires_at": null,
       "revoked_at": null,
@@ -105,14 +105,15 @@ func TestAgentRoutesCommandShape(t *testing.T) {
 	}
 
 	commands := []struct {
-		name  string
-		use   string
-		flags []string
+		name      string
+		use       string
+		flags     []string
+		validArgs []string
 	}{
-		{name: "list", use: "list [agent-id]", flags: []string{"json"}},
-		{name: "view", use: "view [route-id]", flags: []string{"json"}},
-		{name: "create", use: "create [agent-id]", flags: []string{"label", "valid-for", "json"}},
-		{name: "revoke", use: "revoke [route-id]", flags: []string{"force", "json"}},
+		{name: "list", use: "list", flags: []string{"json"}},
+		{name: "view", use: "view [route-id]", flags: []string{"json"}, validArgs: []string{"id-1"}},
+		{name: "create", use: "create [agent-id]", flags: []string{"label", "valid-for", "json"}, validArgs: []string{"id-1"}},
+		{name: "revoke", use: "revoke [route-id]", flags: []string{"force", "json"}, validArgs: []string{"id-1"}},
 	}
 	for _, tt := range commands {
 		t.Run(tt.name, func(t *testing.T) {
@@ -128,13 +129,16 @@ func TestAgentRoutesCommandShape(t *testing.T) {
 					t.Errorf("missing --%s flag", flag)
 				}
 			}
-			if err := command.Args(command, nil); err == nil {
-				t.Error("missing positional ID should fail")
+			if err := command.Args(command, tt.validArgs); err != nil {
+				t.Errorf("valid positional arguments rejected: %v", err)
 			}
-			if err := command.Args(command, []string{"id-1"}); err != nil {
-				t.Errorf("one positional ID should pass: %v", err)
+			if len(tt.validArgs) > 0 {
+				if err := command.Args(command, nil); err == nil {
+					t.Error("missing positional ID should fail")
+				}
 			}
-			if err := command.Args(command, []string{"id-1", "extra"}); err == nil {
+			extraArgs := append(append([]string(nil), tt.validArgs...), "extra")
+			if err := command.Args(command, extraArgs); err == nil {
 				t.Error("extra positional argument should fail")
 			}
 		})
@@ -218,8 +222,10 @@ func TestBuildCreateAgentRouteBody(t *testing.T) {
 
 func TestRunRoutesListRequestAndOutput(t *testing.T) {
 	t.Run("table", func(t *testing.T) {
+		requestCount := 0
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-			if !assertRequest(t, r, http.MethodGet, "/v1/agents/agent-1/routes") {
+			requestCount++
+			if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
 				return
 			}
@@ -229,11 +235,11 @@ func TestRunRoutesListRequestAndOutput(t *testing.T) {
 
 		cmd := newRoutesListCmd()
 		cmd.SetContext(context.Background())
-		output, err := captureStdout(t, func() error { return runRoutesList(cmd, []string{"agent-1"}) })
+		output, err := captureStdout(t, func() error { return runRoutesList(cmd, nil) })
 		if err != nil {
 			t.Fatalf("runRoutesList() error = %v", err)
 		}
-		for _, want := range []string{"LABEL", "ROUTE ID", "STATUS", "EXPIRES", "UPDATED", "route-capability-2", "ACTIVE", "Production website", "route-capability-1", "REVOKED", "Never"} {
+		for _, want := range []string{"LABEL", "AGENT ID", "ROUTE ID", "STATUS", "EXPIRES", "UPDATED", "agent-2", "route-capability-2", "ACTIVE", "Production website", "agent-1", "route-capability-1", "REVOKED", "Never"} {
 			if !strings.Contains(output, want) {
 				t.Errorf("output missing %q: %q", want, output)
 			}
@@ -241,11 +247,14 @@ func TestRunRoutesListRequestAndOutput(t *testing.T) {
 		if strings.Contains(output, "test-token") {
 			t.Fatalf("output leaked owner token: %q", output)
 		}
+		if requestCount != 1 {
+			t.Fatalf("request count = %d, want one owner-wide request", requestCount)
+		}
 	})
 
 	t.Run("empty", func(t *testing.T) {
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-			if !assertRequest(t, r, http.MethodGet, "/v1/agents/agent-1/routes") {
+			if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
 				return
 			}
@@ -255,7 +264,7 @@ func TestRunRoutesListRequestAndOutput(t *testing.T) {
 
 		cmd := newRoutesListCmd()
 		cmd.SetContext(context.Background())
-		output, err := captureStdout(t, func() error { return runRoutesList(cmd, []string{"agent-1"}) })
+		output, err := captureStdout(t, func() error { return runRoutesList(cmd, nil) })
 		if err != nil {
 			t.Fatalf("runRoutesList() error = %v", err)
 		}
@@ -266,7 +275,7 @@ func TestRunRoutesListRequestAndOutput(t *testing.T) {
 
 	t.Run("JSON", func(t *testing.T) {
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-			if !assertRequest(t, r, http.MethodGet, "/v1/agents/agent-1/routes") {
+			if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes") {
 				http.Error(w, "unexpected request", http.StatusBadRequest)
 				return
 			}
@@ -277,7 +286,7 @@ func TestRunRoutesListRequestAndOutput(t *testing.T) {
 		cmd := newRoutesListCmd()
 		cmd.SetContext(context.Background())
 		setFlags(t, cmd, map[string]string{"json": "true"})
-		output, err := captureStdout(t, func() error { return runRoutesList(cmd, []string{"agent-1"}) })
+		output, err := captureStdout(t, func() error { return runRoutesList(cmd, nil) })
 		if err != nil {
 			t.Fatalf("runRoutesList() error = %v", err)
 		}
@@ -289,7 +298,78 @@ func TestRunRoutesListRequestAndOutput(t *testing.T) {
 		if !ok || len(data) != 2 {
 			t.Fatalf("JSON output data = %#v, want two routes", result["data"])
 		}
+		firstRoute, ok := data[0].(map[string]any)
+		if !ok || firstRoute["agent_id"] != "agent-2" {
+			t.Fatalf("first JSON route = %#v, want agent-2", data[0])
+		}
 	})
+}
+
+func TestAgentRouteOwnerListErrorDoesNotLeakCapabilitiesOrTokens(t *testing.T) {
+	server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes") {
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, http.StatusInternalServerError, `{
+			"detail": "route-capability-secret at https://view.example.test/a/route-capability-secret using test-token"
+		}`)
+	})
+	configureAgentTest(t, server.URL)
+
+	cmd := newRoutesListCmd()
+	cmd.SetContext(context.Background())
+	output, err := captureStdout(t, func() error { return runRoutesList(cmd, nil) })
+	if err == nil {
+		t.Fatal("expected list error")
+	}
+	if got := err.Error(); got != "❌ API request failed with status 500" {
+		t.Fatalf("error = %q, want generic status error", got)
+	}
+	for _, secret := range []string{"route-capability-secret", "https://view.example.test", "test-token"} {
+		if strings.Contains(err.Error(), secret) || strings.Contains(output, secret) {
+			t.Fatalf("list error leaked %q: error=%q output=%q", secret, err, output)
+		}
+	}
+}
+
+func TestAgentRouteOwnerListMalformedSuccessDoesNotLeakCapabilitiesOrTokens(t *testing.T) {
+	server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes") {
+			http.Error(w, "unexpected request", http.StatusBadRequest)
+			return
+		}
+		writeJSON(w, http.StatusOK, `{
+			"data": [{
+				"id": "route-capability-secret",
+				"agent_id": "agent-secret",
+				"label": "test-token",
+				"expires_at": null,
+				"revoked_at": null,
+				"route_version": 1,
+				"status": "active",
+				"created_at": "https://view.example.test/a/route-capability-secret",
+				"updated_at": "2026-05-25T00:01:00Z",
+				"path": "/a/route-capability-secret"
+			}]
+		}`)
+	})
+	configureAgentTest(t, server.URL)
+
+	cmd := newRoutesListCmd()
+	cmd.SetContext(context.Background())
+	output, err := captureStdout(t, func() error { return runRoutesList(cmd, nil) })
+	if err == nil {
+		t.Fatal("expected malformed-success error")
+	}
+	if got := err.Error(); got != "failed to list agent routes" {
+		t.Fatalf("error = %q, want generic list error", got)
+	}
+	for _, secret := range []string{"route-capability-secret", "https://view.example.test", "test-token"} {
+		if strings.Contains(err.Error(), secret) || strings.Contains(output, secret) {
+			t.Fatalf("malformed response leaked %q: error=%q output=%q", secret, err, output)
+		}
+	}
 }
 
 func TestRunRoutesViewRequestAndOutput(t *testing.T) {
@@ -545,6 +625,23 @@ func TestValidateAgentRouteRejectsInvalidTimestampOrder(t *testing.T) {
 }
 
 func TestRouteManagementRejectsMalformedResponses(t *testing.T) {
+	t.Run("list route missing agent ID", func(t *testing.T) {
+		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes") {
+				http.Error(w, "unexpected request", http.StatusBadRequest)
+				return
+			}
+			malformed := strings.Replace(testAgentRoutesListResponseJSON, `"agent_id": "agent-2"`, `"agent_id": ""`, 1)
+			writeJSON(w, http.StatusOK, malformed)
+		})
+		configureAgentTest(t, server.URL)
+		cmd := newRoutesListCmd()
+		cmd.SetContext(context.Background())
+		if err := runRoutesList(cmd, nil); err == nil || !strings.Contains(err.Error(), "missing its agent ID") {
+			t.Fatalf("error = %v, want malformed list route error", err)
+		}
+	})
+
 	t.Run("view missing data", func(t *testing.T) {
 		server := newAgentTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 			if !assertRequest(t, r, http.MethodGet, "/v1/agent-routes/route-capability-1") {
@@ -585,7 +682,6 @@ func TestRouteManagementRejectsBlankIDs(t *testing.T) {
 		run  func() error
 		want string
 	}{
-		{name: "list", run: func() error { return runRoutesList(newRoutesListCmd(), []string{"   "}) }, want: "agent ID is required"},
 		{name: "view", run: func() error { return runRoutesView(newRoutesViewCmd(), []string{"   "}) }, want: "route ID is required"},
 		{name: "revoke", run: func() error { return runRoutesRevoke(newRoutesRevokeCmd(), []string{"   "}) }, want: "route ID is required"},
 	}

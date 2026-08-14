@@ -140,8 +140,8 @@ func (c *Client) CreateAgentRoute(ctx context.Context, agentID string, body api.
 	return &result, nil
 }
 
-func (c *Client) ListAgentRoutes(ctx context.Context, agentID string) (*api.ListAgentRoutesApiResponseBody, error) {
-	resp, err := c.sdkClient.ListAgentRoutes(ctx, agentID)
+func (c *Client) ListOwnerAgentRoutes(ctx context.Context) (*api.ListAgentRoutesApiResponseBody, error) {
+	resp, err := c.sdkClient.ListOwnerAgentRoutes(ctx)
 	if err != nil {
 		return nil, err
 	}
