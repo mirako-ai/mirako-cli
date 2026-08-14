@@ -169,7 +169,7 @@ func NewAgentTable(output io.Writer) *TableWriter {
 // NewAgentRouteTable creates a table for displaying agent routes.
 func NewAgentRouteTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
-	t.SetHeader([]string{"LABEL", "ROUTE ID", "STATUS", "EXPIRES", "UPDATED"})
+	t.SetHeader([]string{"LABEL", "AGENT ID", "ROUTE ID", "STATUS", "EXPIRES", "UPDATED"})
 	return t
 }
 

@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/AlecAivazis/survey/v2"
+	apierrors "github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
 	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
@@ -34,29 +35,24 @@ func newRoutesCmd() *cobra.Command {
 
 func newRoutesListCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [agent-id]",
+		Use:   "list",
 		Short: "List agent routes",
-		Long:  `List bearer-capability routes for an owned agent`,
-		Args:  cobra.ExactArgs(1),
+		Long:  `List all bearer-capability routes owned by the authenticated user across agents`,
+		Args:  cobra.NoArgs,
 		RunE:  runRoutesList,
 	}
 	cmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 	return cmd
 }
 
-func runRoutesList(cmd *cobra.Command, args []string) error {
-	agentID := strings.TrimSpace(args[0])
-	if agentID == "" {
-		return fmt.Errorf("agent ID is required")
-	}
-
+func runRoutesList(cmd *cobra.Command, _ []string) error {
 	c, err := newClient(cmd)
 	if err != nil {
 		return err
 	}
-	resp, err := c.ListAgentRoutes(cmd.Context(), agentID)
+	resp, err := c.ListOwnerAgentRoutes(cmd.Context())
 	if err != nil {
-		return formatAPIError(err, "failed to list agent routes")
+		return formatAgentRouteListAPIError(err, "failed to list agent routes")
 	}
 	if resp == nil {
 		return fmt.Errorf("unexpected response from server")
@@ -66,9 +62,6 @@ func runRoutesList(cmd *cobra.Command, args []string) error {
 		for _, route := range *resp.Data {
 			if err := validateAgentRoute(route); err != nil {
 				return err
-			}
-			if route.AgentId != agentID {
-				return fmt.Errorf("unexpected response from server: agent route has the wrong agent ID")
 			}
 		}
 	}
@@ -86,6 +79,7 @@ func runRoutesList(cmd *cobra.Command, args []string) error {
 	for _, route := range *resp.Data {
 		table.AddRow([]interface{}{
 			sanitizeAgentRouteOutput(optionalString(route.Label)),
+			sanitizeAgentRouteOutput(route.AgentId),
 			sanitizeAgentRouteOutput(route.Id),
 			route.Status,
 			formatRouteTimestamp(route.ExpiresAt, "Never"),
@@ -412,6 +406,14 @@ func sanitizeAgentRouteOutput(value string) string {
 			return r
 		}
 	}, value)
+}
+
+func formatAgentRouteListAPIError(err error, fallback string) error {
+	if apiErr, ok := apierrors.IsAPIError(err); ok {
+		safeError := apierrors.NewAPIError(apiErr.StatusCode, "", apiErr.Context)
+		return errors.New(safeError.GetUserFriendlyMessage())
+	}
+	return errors.New(fallback)
 }
 
 func formatAgentRouteAPIError(err error, fallback, routeID string) error {
