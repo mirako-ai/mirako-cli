@@ -81,13 +81,14 @@ func NewAgentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "agent",
 		Short: "Manage agents",
-		Long:  `Create, list, view, and delete persistent agent configurations`,
+		Long:  `Create, list, view, and delete persistent agent configurations and routes`,
 	}
 
 	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newViewCmd())
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newDeleteCmd())
+	cmd.AddCommand(newRoutesCmd())
 
 	return cmd
 }

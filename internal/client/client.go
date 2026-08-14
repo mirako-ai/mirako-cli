@@ -122,6 +122,24 @@ func (c *Client) CreateAgent(ctx context.Context, body api.CreateAgentJSONReques
 	return &result, nil
 }
 
+func (c *Client) CreateAgentRoute(ctx context.Context, agentID string, body api.CreateAgentRouteJSONRequestBody) (*api.CreateAgentRouteApiResponseBody, error) {
+	resp, err := c.sdkClient.CreateAgentRoute(ctx, agentID, body)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if err := handleHTTPResponse(resp, "create agent route"); err != nil {
+		return nil, err
+	}
+
+	var result api.CreateAgentRouteApiResponseBody
+	if err := parseJSONResponse(resp, &result); err != nil {
+		return nil, err
+	}
+	return &result, nil
+}
+
 func marshalJSONOmitNullFields(value interface{}) ([]byte, error) {
 	data, err := json.Marshal(value)
 	if err != nil {
