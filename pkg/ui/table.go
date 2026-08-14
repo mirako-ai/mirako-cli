@@ -111,7 +111,7 @@ func (t *TableWriter) styleStatus(status string) string {
 	switch status {
 	case "ready", "completed", "running", "active":
 		return StatusReady.Sprint(strings.ToUpper(status))
-	case "error", "failed", "cancelled", "timedout":
+	case "error", "failed", "cancelled", "timedout", "expired", "revoked":
 		return StatusError.Sprint(strings.ToUpper(status))
 	case "building", "processing", "generating":
 		return StatusBuilding.Sprint(strings.ToUpper(status))
@@ -163,6 +163,13 @@ func NewSessionTable(output io.Writer) *TableWriter {
 func NewAgentTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
 	t.SetHeader([]string{"NAME", "ID", "RUNTIME", "MODEL", "UPDATED"})
+	return t
+}
+
+// NewAgentRouteTable creates a table for displaying agent routes.
+func NewAgentRouteTable(output io.Writer) *TableWriter {
+	t := NewTableWriter(output)
+	t.SetHeader([]string{"LABEL", "ROUTE ID", "STATUS", "EXPIRES", "UPDATED"})
 	return t
 }
 
