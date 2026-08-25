@@ -94,7 +94,7 @@ func newRoutesViewCmd() *cobra.Command {
 		Use:   "view [route-id]",
 		Short: "View an agent route",
 		Long:  `View lifecycle and capability details for an owned agent route`,
-		Args:  cobra.ExactArgs(1),
+		Args:  exactNamedArgs("route-id"),
 		RunE:  runRoutesView,
 	}
 	cmd.Flags().BoolP("json", "j", false, "Output in JSON format")
@@ -138,7 +138,7 @@ func newRoutesRevokeCmd() *cobra.Command {
 		Use:   "revoke [route-id]",
 		Short: "Revoke an agent route",
 		Long:  `Terminally and idempotently revoke an owned agent route`,
-		Args:  cobra.ExactArgs(1),
+		Args:  exactNamedArgs("route-id"),
 		RunE:  runRoutesRevoke,
 	}
 	cmd.Flags().BoolP("force", "f", false, "Skip confirmation prompt")
@@ -207,7 +207,7 @@ func newRoutesCreateCmd() *cobra.Command {
 		Use:   "create [agent-id]",
 		Short: "Create an agent route",
 		Long:  `Create a permanent or temporary bearer-capability route for an owned agent`,
-		Args:  cobra.ExactArgs(1),
+		Args:  exactNamedArgs("agent-id"),
 		RunE:  runRoutesCreate,
 	}
 
@@ -216,6 +216,25 @@ func newRoutesCreateCmd() *cobra.Command {
 	cmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	return cmd
+}
+
+func exactNamedArgs(names ...string) cobra.PositionalArgs {
+	return func(cmd *cobra.Command, args []string) error {
+		if len(args) >= len(names) {
+			return cobra.ExactArgs(len(names))(cmd, args)
+		}
+
+		missing := make([]string, 0, len(names)-len(args))
+		for _, name := range names[len(args):] {
+			missing = append(missing, "["+name+"]")
+		}
+
+		argument := "argument"
+		if len(missing) > 1 {
+			argument = "arguments"
+		}
+		return fmt.Errorf("missing required %s: %s; use %q for help", argument, strings.Join(missing, ", "), cmd.CommandPath()+" -h")
+	}
 }
 
 func runRoutesCreate(cmd *cobra.Command, args []string) error {
