@@ -105,15 +105,16 @@ func TestAgentRoutesCommandShape(t *testing.T) {
 	}
 
 	commands := []struct {
-		name      string
-		use       string
-		flags     []string
-		validArgs []string
+		name        string
+		use         string
+		flags       []string
+		validArgs   []string
+		requiredArg string
 	}{
 		{name: "list", use: "list", flags: []string{"json"}},
-		{name: "view", use: "view [route-id]", flags: []string{"json"}, validArgs: []string{"id-1"}},
-		{name: "create", use: "create [agent-id]", flags: []string{"label", "valid-for", "json"}, validArgs: []string{"id-1"}},
-		{name: "revoke", use: "revoke [route-id]", flags: []string{"force", "json"}, validArgs: []string{"id-1"}},
+		{name: "view", use: "view [route-id]", flags: []string{"json"}, validArgs: []string{"id-1"}, requiredArg: "route-id"},
+		{name: "create", use: "create [agent-id]", flags: []string{"label", "valid-for", "json"}, validArgs: []string{"id-1"}, requiredArg: "agent-id"},
+		{name: "revoke", use: "revoke [route-id]", flags: []string{"force", "json"}, validArgs: []string{"id-1"}, requiredArg: "route-id"},
 	}
 	for _, tt := range commands {
 		t.Run(tt.name, func(t *testing.T) {
@@ -133,8 +134,11 @@ func TestAgentRoutesCommandShape(t *testing.T) {
 				t.Errorf("valid positional arguments rejected: %v", err)
 			}
 			if len(tt.validArgs) > 0 {
+				want := fmt.Sprintf("missing required argument: [%s]; use %q for help", tt.requiredArg, command.CommandPath()+" -h")
 				if err := command.Args(command, nil); err == nil {
 					t.Error("missing positional ID should fail")
+				} else if err.Error() != want {
+					t.Errorf("missing argument error = %q, want %q", err, want)
 				}
 			}
 			extraArgs := append(append([]string(nil), tt.validArgs...), "extra")
