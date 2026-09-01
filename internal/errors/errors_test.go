@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -69,6 +70,14 @@ func TestAPIError_GetUserFriendlyMessage(t *testing.T) {
 				t.Errorf("GetUserFriendlyMessage() = %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestIsAPIErrorUnwraps(t *testing.T) {
+	want := NewAPIError(http.StatusBadRequest, "bad request", "test")
+	got, ok := IsAPIError(fmt.Errorf("outer context: %w", want))
+	if !ok || got != want {
+		t.Fatalf("IsAPIError() = %v, %t; want wrapped API error", got, ok)
 	}
 }
 

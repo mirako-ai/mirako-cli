@@ -27,6 +27,7 @@ func NewImageCmd() *cobra.Command {
 
 	cmd.AddCommand(newGenerateCmd())
 	cmd.AddCommand(newStatusCmd())
+	cmd.AddCommand(newUpscaleCmd())
 
 	return cmd
 }

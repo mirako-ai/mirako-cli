@@ -9,8 +9,8 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 - **🎭 AI Avatar Management**: Build, generate, list, and manage AI avatars
 - **💬 Interactive Sessions**: Launch and manage AI chat sessions
 - **🎙️ Speech Services**: Speech-to-text (STT) and text-to-speech (TTS)
-- **🎨 Image Generation**: Create AI-generated images from text prompts with support for text-image-to-image generation
-- **🎬 Video Creation**: Generate talking avatar videos with custom audio
+- **🎨 Image Generation & Upscaling**: Create AI-generated images and upscale JPEG, PNG, or WebP inputs
+- **🎬 Video Creation & Upscaling**: Generate talking avatar videos and upscale MP4 videos to 1080p, 2K, or 4K
 - **🗣️ Voice Cloning**: Create and manage custom voice profiles
 - **🔐 Secure Authentication**: OAuth 2.0 API token management
 - **⚡ Fast & Lightweight**: Built in Go for optimal performance
@@ -244,9 +244,18 @@ mirako image generate --prompt "A cat on a windowsill" --seed 12345
 
 # Generate with custom output path
 mirako image generate --prompt "A cozy cabin" --output ./images/cabin.jpg
+
+# Upscale an image 4x (default) and save the PNG result
+mirako image upscale --image ./images/photo.jpg
+
+# Upscale an image 2x to a custom path
+mirako image upscale --image ./images/photo.webp --outscale 2 --output ./images/photo-2x.png
+
+# Check or recover an image upscale task
+mirako image upscale status [task-id]
 ```
 
-### Video Generation
+### Video Generation and Upscaling
 
 ```bash
 # Generate talking avatar video
@@ -260,6 +269,15 @@ mirako video generate --model motion --image path/to/avatar.jpg --audio path/to/
 
 # Check video generation status
 mirako video status [task-id]
+
+# Upscale an MP4 to 4K, wait for completion, and save it
+mirako video upscale --video ./videos/clip.mp4 --resolution 4k --output ./videos/clip-4k.mp4
+
+# Submit an upscale task without waiting
+mirako video upscale --video ./videos/clip.mp4 --resolution 2k --no-wait
+
+# Check or recover a video upscale task
+mirako video upscale status [task-id]
 ```
 
 ### Voice Management

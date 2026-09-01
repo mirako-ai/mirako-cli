@@ -189,7 +189,7 @@ func runRoutesRevoke(cmd *cobra.Command, args []string) error {
 	if resp.Data.Id != routeID {
 		return fmt.Errorf("unexpected response from server: agent route has the wrong route ID")
 	}
-	if resp.Data.Status != api.Revoked || resp.Data.RevokedAt == nil {
+	if resp.Data.Status != "revoked" || resp.Data.RevokedAt == nil {
 		return fmt.Errorf("unexpected response from server: revoked route has inconsistent lifecycle state")
 	}
 
@@ -322,7 +322,7 @@ func validateCreatedAgentRoute(route api.AgentRouteResponse, agentID string, req
 		return fmt.Errorf("unexpected response from server: created route has the wrong agent ID")
 	case strings.TrimSpace(route.Path) == "":
 		return fmt.Errorf("unexpected response from server: created route is missing its path")
-	case route.Status != api.Active:
+	case route.Status != "active":
 		return fmt.Errorf("unexpected response from server: created route is not active")
 	case route.RevokedAt != nil:
 		return fmt.Errorf("unexpected response from server: created route is revoked")
@@ -364,15 +364,15 @@ func validateAgentRoute(route api.AgentRouteResponse) error {
 	}
 
 	switch route.Status {
-	case api.Active:
+	case "active":
 		if route.RevokedAt != nil {
 			return fmt.Errorf("unexpected response from server: active route has a revocation timestamp")
 		}
-	case api.Expired:
+	case "expired":
 		if route.ExpiresAt == nil || route.RevokedAt != nil {
 			return fmt.Errorf("unexpected response from server: expired route has inconsistent lifecycle state")
 		}
-	case api.Revoked:
+	case "revoked":
 		if route.RevokedAt == nil {
 			return fmt.Errorf("unexpected response from server: revoked route is missing its revocation timestamp")
 		}

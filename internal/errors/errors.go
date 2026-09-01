@@ -2,6 +2,7 @@ package errors
 
 import (
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -114,6 +115,7 @@ func NewAPIError(statusCode int, message, context string) *APIError {
 
 // IsAPIError checks if an error is an APIError
 func IsAPIError(err error) (*APIError, bool) {
-	apiErr, ok := err.(*APIError)
+	var apiErr *APIError
+	ok := stderrors.As(err, &apiErr)
 	return apiErr, ok
 }

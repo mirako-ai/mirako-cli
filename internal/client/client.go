@@ -18,9 +18,12 @@ import (
 	sdkclient "github.com/mirako-ai/mirako-go/client"
 )
 
+const mediaUploadTimeout = 2 * time.Hour
+
 type Client struct {
-	sdkClient *sdkclient.Client
-	config    *config.Config
+	sdkClient       *sdkclient.Client
+	uploadSDKClient *sdkclient.Client
+	config          *config.Config
 }
 
 func New(cfg *config.Config) (*Client, error) {
@@ -36,9 +39,21 @@ func New(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("failed to create API client: %w", err)
 	}
 
+	// Large media uploads need substantially longer than the SDK's default
+	// 60-second timeout while still retaining a finite upper bound.
+	uploadSDKClient, err := sdkclient.NewClient(
+		sdkclient.WithAPIKey(cfg.APIToken),
+		sdkclient.WithBaseURL(cfg.APIURL),
+		sdkclient.WithHTTPClient(&http.Client{Timeout: mediaUploadTimeout}),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create upload API client: %w", err)
+	}
+
 	return &Client{
-		sdkClient: sdkClient,
-		config:    cfg,
+		sdkClient:       sdkClient,
+		uploadSDKClient: uploadSDKClient,
+		config:          cfg,
 	}, nil
 }
 
