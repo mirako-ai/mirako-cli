@@ -4,10 +4,7 @@ import (
 	"bufio"
 	"encoding/base64"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -62,6 +59,7 @@ func NewVideoCmd() *cobra.Command {
 
 	cmd.AddCommand(newGenerateCmd())
 	cmd.AddCommand(newStatusCmd())
+	cmd.AddCommand(newUpscaleCmd())
 
 	return cmd
 }
@@ -212,51 +210,12 @@ func runGenerateTalkingAvatar(cmd *cobra.Command, args []string) error {
 						return nil
 					}
 
-					// Download the video file from URL
 					videoURL := *statusResp.Data.FileUrl
+					outputPath = util.ResolveMediaOutputPath(outputPath, cfg.DefaultSavePath, "video", ".mp4")
 					fmt.Printf("🎥 Downloading video...\n")
-
-					// Determine output path
-					if outputPath == "" {
-						now := time.Now()
-						timestamp := fmt.Sprintf("%s_%03d", now.Format("20060102_150405"), now.Nanosecond()/1000000)
-						defaultFilename := fmt.Sprintf("video_%s.mp4", timestamp)
-						outputPath = filepath.Join(cfg.DefaultSavePath, defaultFilename)
-					}
-
-					// Ensure .mp4 extension
-					if !strings.HasSuffix(strings.ToLower(outputPath), ".mp4") {
-						outputPath += ".mp4"
-					}
-
-					// Create directory if it doesn't exist
-					dir := filepath.Dir(outputPath)
-					if err := os.MkdirAll(dir, 0755); err != nil {
-						return fmt.Errorf("failed to create directory: %w", err)
-					}
-
-					// Download the video
-					resp, err := http.Get(videoURL)
+					bytesWritten, err := util.DownloadMedia(ctx, videoURL, outputPath)
 					if err != nil {
-						return fmt.Errorf("failed to download video: %w", err)
-					}
-					defer resp.Body.Close()
-
-					if resp.StatusCode != http.StatusOK {
-						return fmt.Errorf("failed to download video: HTTP %d", resp.StatusCode)
-					}
-
-					// Create the output file
-					outFile, err := os.Create(outputPath)
-					if err != nil {
-						return fmt.Errorf("failed to create output file: %w", err)
-					}
-					defer outFile.Close()
-
-					// Copy the response body to the file
-					bytesWritten, err := io.Copy(outFile, resp.Body)
-					if err != nil {
-						return fmt.Errorf("failed to save video: %w", err)
+						return err
 					}
 
 					fmt.Printf("✅ Video saved successfully!\n")
@@ -397,43 +356,11 @@ func runGenerateAvatarMotion(cmd *cobra.Command, args []string) error {
 					}
 
 					videoURL := *statusResp.Data.FileUrl
+					outputPath = util.ResolveMediaOutputPath(outputPath, cfg.DefaultSavePath, "video", ".mp4")
 					fmt.Printf("🎥 Downloading video...\n")
-
-					if outputPath == "" {
-						now := time.Now()
-						timestamp := fmt.Sprintf("%s_%03d", now.Format("20060102_150405"), now.Nanosecond()/1000000)
-						defaultFilename := fmt.Sprintf("video_%s.mp4", timestamp)
-						outputPath = filepath.Join(cfg.DefaultSavePath, defaultFilename)
-					}
-
-					if !strings.HasSuffix(strings.ToLower(outputPath), ".mp4") {
-						outputPath += ".mp4"
-					}
-
-					dir := filepath.Dir(outputPath)
-					if err := os.MkdirAll(dir, 0755); err != nil {
-						return fmt.Errorf("failed to create directory: %w", err)
-					}
-
-					resp, err := http.Get(videoURL)
+					bytesWritten, err := util.DownloadMedia(ctx, videoURL, outputPath)
 					if err != nil {
-						return fmt.Errorf("failed to download video: %w", err)
-					}
-					defer resp.Body.Close()
-
-					if resp.StatusCode != http.StatusOK {
-						return fmt.Errorf("failed to download video: HTTP %d", resp.StatusCode)
-					}
-
-					outFile, err := os.Create(outputPath)
-					if err != nil {
-						return fmt.Errorf("failed to create output file: %w", err)
-					}
-					defer outFile.Close()
-
-					bytesWritten, err := io.Copy(outFile, resp.Body)
-					if err != nil {
-						return fmt.Errorf("failed to save video: %w", err)
+						return err
 					}
 
 					fmt.Printf("✅ Video saved successfully!\n")
@@ -509,53 +436,17 @@ func runStatus(cmd *cobra.Command, args []string) error {
 			response = strings.TrimSpace(strings.ToLower(response))
 
 			if response == "" || response == "y" || response == "yes" {
-				// Generate default filename
-				defaultFilename := fmt.Sprintf("video_%s.mp4", taskID)
-				defaultPath := filepath.Join(cfg.DefaultSavePath, defaultFilename)
+				defaultPath := util.ResolveTaskOutputPath("", cfg.DefaultSavePath, "video", taskID, ".mp4")
 
-				// Ask for save location
 				fmt.Printf("Enter save path [%s]: ", defaultPath)
 				savePath, _ := reader.ReadString('\n')
 				savePath = strings.TrimSpace(savePath)
+				savePath = util.ResolveTaskOutputPath(savePath, cfg.DefaultSavePath, "video", taskID, ".mp4")
 
-				if savePath == "" {
-					savePath = defaultPath
-				}
-
-				// Ensure .mp4 extension
-				if !strings.HasSuffix(strings.ToLower(savePath), ".mp4") {
-					savePath += ".mp4"
-				}
-
-				// Create directory if it doesn't exist
-				dir := filepath.Dir(savePath)
-				if err := os.MkdirAll(dir, 0755); err != nil {
-					return fmt.Errorf("failed to create directory: %w", err)
-				}
-
-				// Download the video
 				fmt.Printf("🎥 Downloading video...\n")
-				httpResp, err := http.Get(videoURL)
+				bytesWritten, err := util.DownloadMedia(ctx, videoURL, savePath)
 				if err != nil {
-					return fmt.Errorf("failed to download video: %w", err)
-				}
-				defer httpResp.Body.Close()
-
-				if httpResp.StatusCode != http.StatusOK {
-					return fmt.Errorf("failed to download video: HTTP %d", httpResp.StatusCode)
-				}
-
-				// Create the output file
-				outFile, err := os.Create(savePath)
-				if err != nil {
-					return fmt.Errorf("failed to create output file: %w", err)
-				}
-				defer outFile.Close()
-
-				// Copy the response body to the file
-				bytesWritten, err := io.Copy(outFile, httpResp.Body)
-				if err != nil {
-					return fmt.Errorf("failed to save video: %w", err)
+					return err
 				}
 
 				fmt.Printf("✅ Video saved successfully!\n")

@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/config"
-	"github.com/mirako-ai/mirako-cli/pkg/cmd/agent"
 	"github.com/mirako-ai/mirako-cli/internal/updater"
+	"github.com/mirako-ai/mirako-cli/pkg/cmd/agent"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/auth"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/avatar"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/completion"
@@ -39,7 +39,7 @@ var rootCmd = &cobra.Command{
 It allows you to:
 - Create and manage AI avatars
 - Start interactive sessions
-- Generate images and videos
+- Generate and upscale images and videos
 - Use speech-to-text and text-to-speech services
 - Clone and manage voice profiles
 

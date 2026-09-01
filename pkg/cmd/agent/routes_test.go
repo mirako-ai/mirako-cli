@@ -182,17 +182,13 @@ func TestParseValidFor(t *testing.T) {
 }
 
 func TestBuildCreateAgentRouteBody(t *testing.T) {
-	t.Run("permanent route omits optional fields", func(t *testing.T) {
+	t.Run("permanent route leaves optional fields unset", func(t *testing.T) {
 		body, err := buildCreateAgentRouteBody(newRoutesCreateCmd())
 		if err != nil {
 			t.Fatalf("buildCreateAgentRouteBody() error = %v", err)
 		}
-		encoded, err := json.Marshal(body)
-		if err != nil {
-			t.Fatalf("json.Marshal() error = %v", err)
-		}
-		if string(encoded) != "{}" {
-			t.Fatalf("body = %s, want {}", encoded)
+		if body.Label != nil || body.ValiditySeconds != nil {
+			t.Fatalf("body optional fields = label %v, validity %v; want nil", body.Label, body.ValiditySeconds)
 		}
 	})
 
@@ -504,8 +500,14 @@ func TestRunRoutesCreateRequestAndOutput(t *testing.T) {
 		if err != nil {
 			t.Fatalf("runRoutesCreate() error = %v", err)
 		}
+		for _, field := range []string{"label", "validity_seconds"} {
+			if value, ok := requestBody[field]; ok && value != nil {
+				t.Fatalf("request field %q = %#v, want omitted or null", field, value)
+			}
+			delete(requestBody, field)
+		}
 		if len(requestBody) != 0 {
-			t.Fatalf("request body = %#v, want empty object", requestBody)
+			t.Fatalf("request body has unexpected fields: %#v", requestBody)
 		}
 
 		for _, want := range []string{
@@ -618,7 +620,7 @@ func TestValidateAgentRouteRejectsInvalidTimestampOrder(t *testing.T) {
 		Id:           "route-capability-1",
 		AgentId:      "agent-1",
 		Path:         "/a/route-capability-1",
-		Status:       api.Active,
+		Status:       "active",
 		RouteVersion: 1,
 		CreatedAt:    createdAt,
 		UpdatedAt:    createdAt.Add(-time.Minute),
