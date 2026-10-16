@@ -131,6 +131,7 @@ func runList(cmd *cobra.Command, args []string) error {
 	for _, agent := range *resp.Data {
 		t.AddRow([]interface{}{
 			agent.Name,
+			optionalString(agent.Description),
 			agent.Id,
 			agent.RuntimeKind,
 			agent.Model,

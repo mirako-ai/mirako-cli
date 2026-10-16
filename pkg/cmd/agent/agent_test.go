@@ -246,6 +246,12 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 	if body.Name != "Managed Agent" || body.AvatarId != "avatar-1" || body.VoiceProfileId != "voice-1" {
 		t.Fatalf("unexpected common fields: %+v", body)
 	}
+	if body.Description == nil || *body.Description != "Helpful managed agent" {
+		t.Fatalf("description = %v, want Helpful managed agent", body.Description)
+	}
+	if !containsCall(prompter.calls, "input:Description (optional)") {
+		t.Fatalf("expected interactive description prompt, got calls %v", prompter.calls)
+	}
 	assertJSONFieldAbsent(t, body, "llm_model")
 	if body.Instruction == nil || *body.Instruction != instruction {
 		t.Fatalf("instruction = %v, want %q", body.Instruction, instruction)
@@ -683,11 +689,11 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if len(lines) < 3 {
 			t.Fatalf("expected list output to include header and two rows, got %q", output)
 		}
-		if got, want := strings.Join(strings.Fields(lines[0]), " "), "NAME ID RUNTIME MODEL UPDATED"; got != want {
+		if got, want := strings.Join(strings.Fields(lines[0]), " "), "NAME DESCRIPTION ID RUNTIME MODEL UPDATED"; got != want {
 			t.Fatalf("list header = %q, want %q; full output %q", got, want, output)
 		}
-		assertContainsInOrder(t, lines[1], "Agent One", "agent-1", "managed_agent", "metis-2.5", "2026-")
-		assertContainsInOrder(t, lines[2], "Custom Agent", "custom-agent-1", "custom_agent", "metis-2.5", "2026-")
+		assertContainsInOrder(t, lines[1], "Agent One", "Helpful agent", "agent-1", "managed_agent", "metis-2.5", "2026-")
+		assertContainsInOrder(t, lines[2], "Custom Agent", "Custom endpoint agent", "custom-agent-1", "custom_agent", "metis-2.5", "2026-")
 		for _, removed := range []string{"AVATAR ID", "VOICE ID", "CUSTOM TOKEN", "avatar-1", "voice-1", "true"} {
 			if strings.Contains(output, removed) {
 				t.Fatalf("list output should not contain removed column/value %q; got %q", removed, output)
