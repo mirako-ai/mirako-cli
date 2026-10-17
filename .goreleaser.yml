@@ -78,7 +78,7 @@ brews:
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: "https://mirako.ai"
-    description: "Official CLI for Mirako AI platform - Create and manage AI avatars, interactive sessions, and AI media generation"
+    description: "Official CLI for Mirako AI platform - Create and manage AI avatars, agents, and AI media generation"
     license: "MIT"
     dependencies:
       - name: git

@@ -10,277 +10,107 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func setupConfigTest(t *testing.T) string {
+	t.Helper()
+	viper.Reset()
+	originalConfigPath := ConfigPath
+	t.Cleanup(func() {
+		viper.Reset()
+		ConfigPath = originalConfigPath
+	})
+	dir := t.TempDir()
+	t.Setenv("MIRAKO_CONFIG_PATH", dir)
+	return filepath.Join(dir, DefaultConfigFileName)
+}
+
 func TestLoadConfig(t *testing.T) {
-	// Create temporary directory for test config
-	tempDir, err := os.MkdirTemp("", "mirako-config-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
-
-	// Set test config paths
-	os.Setenv("MIRAKO_CONFIG_PATH", tempDir)
-	tempConfigFile := filepath.Join(tempDir, "config.yml")
-
 	tests := []struct {
-		name           string
-		configContent  string
-		expectedConfig *Config
-		expectError    bool
+		name    string
+		content string
+		want    Config
 	}{
 		{
-			name:          "empty config file",
-			configContent: ``,
-			expectedConfig: &Config{
-				APIURL:          "https://mirako.co",
-				DefaultVoice:    "",
-				DefaultSavePath: ".",
-				InteractiveProfiles: map[string]InteractiveProfile{
-					"default": {
-						Model:       "metis-2.5",
-						IdleTimeout: 15,
-					},
-				},
-			},
-			expectError: false,
+			name: "empty config file",
+			want: Config{APIURL: "https://mirako.co", DefaultSavePath: "."},
 		},
 		{
-			name: "full config with Default profile",
-			configContent: `api_token: test-token
+			name: "full config",
+			content: `api_token: test-token
 api_url: https://test.mirako.co
 default_voice: test-voice
 default_save_path: /test/path
-interactive_profiles:
-  default:
-    avatar_id: test-avatar-id
-    model: test-model
-    llm_model: test-llm-model
-    voice_profile_id: test-voice-id
-    instruction: test instruction
-    tools: ["tool1", "tool2"]
 `,
-			expectedConfig: &Config{
+			want: Config{
 				APIToken:        "test-token",
 				APIURL:          "https://test.mirako.co",
 				DefaultVoice:    "test-voice",
 				DefaultSavePath: "/test/path",
-				InteractiveProfiles: map[string]InteractiveProfile{
-					"default": {
-						AvatarID:       "test-avatar-id",
-						Model:          "test-model",
-						LLMModel:       "test-llm-model",
-						VoiceProfileID: "test-voice-id",
-						Instruction:    "test instruction",
-						Tools:          []any{"tool1", "tool2"},
-					},
-				},
 			},
-			expectError: false,
 		},
 		{
-			name: "config with multiple profiles",
-			configContent: `api_token: test-token
-interactive_profiles:
-  default:
-    avatar_id: default-avatar
-    model: default-model
-    instruction: default instruction
-  CustomProfile:
-    avatar_id: custom-avatar
-    model: custom-model
-    instruction: custom instruction
-`,
-			expectedConfig: &Config{
-				APIToken:        "test-token",
-				APIURL:          "https://mirako.co",
-				DefaultVoice:    "",
-				DefaultSavePath: ".",
-				InteractiveProfiles: map[string]InteractiveProfile{
-					"default": {
-						AvatarID:    "default-avatar",
-						Model:       "default-model",
-						Instruction: "default instruction",
-					},
-					"customprofile": {
-						AvatarID:    "custom-avatar",
-						Model:       "custom-model",
-						Instruction: "custom instruction",
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "config with partial profiles",
-			configContent: `interactive_profiles:
-  default:
-    avatar_id: test-avatar
-  MinimalProfile:
-    model: minimal-model
-`,
-			expectedConfig: &Config{
-				APIURL:          "https://mirako.co",
-				DefaultVoice:    "",
-				DefaultSavePath: ".",
-				InteractiveProfiles: map[string]InteractiveProfile{
-					"default": {
-						AvatarID: "test-avatar",
-					},
-					"minimalprofile": {
-						Model: "minimal-model",
-					},
-				},
-			},
-			expectError: false,
-		},
-		{
-			name: "config with empty interactive_profiles",
-			configContent: `api_token: test-token
-interactive_profiles: {}
-`,
-			expectedConfig: &Config{
-				APIToken:            "test-token",
-				APIURL:              "https://mirako.co",
-				DefaultVoice:        "",
-				DefaultSavePath:     ".",
-				InteractiveProfiles: map[string]InteractiveProfile{},
-			},
-			expectError: false,
-		},
-		{
-			name: "config with special characters in profile name",
-			configContent: `interactive_profiles:
-  "Test-Profile_123":
-    avatar_id: special-avatar
-    model: special-model
-`,
-			expectedConfig: &Config{
-				APIURL:          "https://mirako.co",
-				DefaultVoice:    "",
-				DefaultSavePath: ".",
-				InteractiveProfiles: map[string]InteractiveProfile{
-					"test-profile_123": {
-						AvatarID: "special-avatar",
-						Model:    "special-model",
-					},
-				},
-			},
-			expectError: false,
+			name:    "partial config",
+			content: "api_token: test-token\n",
+			want:    Config{APIToken: "test-token", APIURL: "https://mirako.co", DefaultSavePath: "."},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Reset viper for clean state
-			viper.Reset()
-
-			// Create test config file
-			if tt.configContent != "" {
-				err := os.WriteFile(tempConfigFile, []byte(tt.configContent), 0644)
-				require.NoError(t, err)
-			}
-
-			// Load config, respecting the MIRAKO_CONFIG_PATH env var
+			path := setupConfigTest(t)
+			require.NoError(t, os.WriteFile(path, []byte(tt.content), 0600))
 			cfg, err := Load()
-			if tt.expectError {
-				assert.Error(t, err)
-				return
-			}
-
-			assert.NoError(t, err)
-			assert.Equal(t, tt.expectedConfig.APIURL, cfg.APIURL)
-			assert.Equal(t, tt.expectedConfig.DefaultVoice, cfg.DefaultVoice)
-			assert.Equal(t, tt.expectedConfig.DefaultSavePath, cfg.DefaultSavePath)
-			assert.Equal(t, tt.expectedConfig.APIToken, cfg.APIToken)
-			t.Log(cfg.InteractiveProfiles)
-			assert.Equal(t, len(tt.expectedConfig.InteractiveProfiles), len(cfg.InteractiveProfiles))
-
-			// Compare interactive profiles
-			for expectedName, expectedProfile := range tt.expectedConfig.InteractiveProfiles {
-				actualProfile, exists := cfg.InteractiveProfiles[expectedName]
-				assert.True(t, exists, "profile %s should exist", expectedName)
-				assert.Equal(t, expectedProfile, actualProfile)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, *cfg)
 		})
 	}
 }
 
-func TestSaveConfig(t *testing.T) {
-	// Create temporary directory for test
-	tempDir, err := os.MkdirTemp("", "mirako-config-test")
+func TestLoadCreatesDefaultConfig(t *testing.T) {
+	path := setupConfigTest(t)
+	cfg, err := Load()
 	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	assert.Equal(t, Config{APIURL: "https://mirako.co", DefaultSavePath: "."}, *cfg)
 
-	// Set test config paths
-	os.Setenv("MIRAKO_CONFIG_PATH", tempDir)
-	originalConfigPath := ConfigPath
-	ConfigPath = tempDir
-	defer func() { ConfigPath = originalConfigPath }()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "interactive_profiles")
+	assert.NotContains(t, string(data), "metis")
 
+	viper.Reset()
+	loaded, err := Load()
+	require.NoError(t, err)
+	assert.Equal(t, cfg, loaded)
+}
+
+func TestSaveConfig(t *testing.T) {
+	path := setupConfigTest(t)
+	ConfigPath = filepath.Dir(path)
 	cfg := &Config{
 		APIToken:        "test-token",
 		APIURL:          "https://test.mirako.co",
 		DefaultVoice:    "test-voice",
 		DefaultSavePath: "/test/path",
-		InteractiveProfiles: map[string]InteractiveProfile{
-			"default": {
-				AvatarID:       "test-avatar",
-				Model:          "test-model",
-				LLMModel:       "test-llm",
-				VoiceProfileID: "test-voice-id",
-				Instruction:    "test instruction",
-				Tools:          []interface{}{"tool1", "tool2"},
-			},
-			"custom": {
-				AvatarID: "custom-avatar",
-				Model:    "custom-model",
-			},
-		},
 	}
+	require.NoError(t, cfg.Save())
 
-	err = cfg.Save()
-	assert.NoError(t, err)
-
-	// Reset viper state and load the saved config
 	viper.Reset()
-	loadedCfg, err := Load()
+	loaded, err := Load()
 	require.NoError(t, err)
-
-	assert.Equal(t, cfg.APIToken, loadedCfg.APIToken)
-	assert.Equal(t, cfg.APIURL, loadedCfg.APIURL)
-	assert.Equal(t, cfg.DefaultVoice, loadedCfg.DefaultVoice)
-	assert.Equal(t, cfg.DefaultSavePath, loadedCfg.DefaultSavePath)
-
-	// Compare interactive profiles individually since maps can't be directly compared
-	assert.Equal(t, len(cfg.InteractiveProfiles), len(loadedCfg.InteractiveProfiles))
-	for name, expectedProfile := range cfg.InteractiveProfiles {
-		actualProfile, exists := loadedCfg.InteractiveProfiles[name]
-		assert.True(t, exists, "profile %s should exist", name)
-		assert.Equal(t, expectedProfile.AvatarID, actualProfile.AvatarID)
-		assert.Equal(t, expectedProfile.Model, actualProfile.Model)
-		assert.Equal(t, expectedProfile.LLMModel, actualProfile.LLMModel)
-		assert.Equal(t, expectedProfile.VoiceProfileID, actualProfile.VoiceProfileID)
-		assert.Equal(t, expectedProfile.Instruction, actualProfile.Instruction)
-
-		if len(expectedProfile.Tools) == 0 && len(actualProfile.Tools) == 0 {
-			continue
-		}
-		assert.Equal(t, expectedProfile.Tools, actualProfile.Tools)
-	}
+	assert.Equal(t, cfg, loaded)
 }
 
 func TestIsAuthenticated(t *testing.T) {
-	tests := []struct {
-		name     string
-		token    string
-		expected bool
+	for _, tt := range []struct {
+		name  string
+		token string
+		want  bool
 	}{
-		{"with token", "test-token", true},
-		{"empty token", "", false},
-	}
-
-	for _, tt := range tests {
+		{name: "with token", token: "test-token", want: true},
+		{name: "empty token", want: false},
+	} {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{APIToken: tt.token}
-			assert.Equal(t, tt.expected, cfg.IsAuthenticated())
+			assert.Equal(t, tt.want, cfg.IsAuthenticated())
 		})
 	}
 }

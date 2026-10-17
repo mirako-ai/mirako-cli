@@ -14,7 +14,6 @@ import (
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/completion"
 	configcmd "github.com/mirako-ai/mirako-cli/pkg/cmd/config"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/image"
-	"github.com/mirako-ai/mirako-cli/pkg/cmd/interactive"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/speech"
 	updatecmd "github.com/mirako-ai/mirako-cli/pkg/cmd/update"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/video"
@@ -38,7 +37,6 @@ var rootCmd = &cobra.Command{
 
 It allows you to:
 - Create and manage AI avatars
-- Start interactive sessions
 - Generate and upscale images and videos
 - Use speech-to-text and text-to-speech services
 - Clone and manage voice profiles
@@ -102,7 +100,6 @@ func init() {
 	rootCmd.AddCommand(completion.NewCompletionCmd())
 	rootCmd.AddCommand(configcmd.NewConfigCmd())
 	rootCmd.AddCommand(image.NewImageCmd())
-	rootCmd.AddCommand(interactive.NewInteractiveCmd())
 	rootCmd.AddCommand(speech.NewSpeechCmd())
 	rootCmd.AddCommand(updatecmd.NewUpdateCmd(func() string { return Version }))
 	rootCmd.AddCommand(video.NewVideoCmd())

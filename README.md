@@ -2,12 +2,11 @@
 
 [![Test Status](https://github.com/mirako-ai/mirako-cli/workflows/Test/badge.svg)](https://github.com/mirako-ai/mirako-cli/actions)
 
-The official CLI interface for the [Mirako AI](https://mirako.ai) platform, maintained by the Mirako Team. Create and manage AI avatars, start interactive sessions, generate AI media, and leverage advanced speech services - all from your terminal.
+The official CLI interface for the [Mirako AI](https://mirako.ai) platform, maintained by the Mirako Team. Create and manage AI avatars and agents, generate AI media, and leverage advanced speech services - all from your terminal.
 
 ## Features
 
 - **🎭 AI Avatar Management**: Build, generate, list, and manage AI avatars
-- **💬 Interactive Sessions**: Launch and manage AI chat sessions
 - **🎙️ Speech Services**: Speech-to-text (STT) and text-to-speech (TTS)
 - **🎨 Image Generation & Upscaling**: Create AI-generated images and upscale JPEG, PNG, or WebP inputs
 - **🎬 Video Creation & Upscaling**: Generate talking avatar videos and upscale MP4 videos to 1080p, 2K, or 4K
@@ -105,28 +104,14 @@ api_url: https://mirako.co
 api_token: [my-mirako-api-key]
 
 # Default settings
-default_voice: some-voice-id    # default voice profile id used in tts or interactive sessions
+default_voice: some-voice-id    # default voice profile id used in tts
 default_save_path: .            # Default path to save generated files
-
-# Interactive session profiles
-interactive_profiles:
-  default:
-    avatar_id: [my-avatar-id]
-    model: metis-2.5
-    llm_model: gemini-2.0-flash
-    voice_profile_id: [some-voice-id]
-    instruction: |
-      You are a helpful AI assistant.
-      Answer questions concisely and accurately.
-    tools: []
 
 # Advanced settings
 debug: false
 timeout: 30s
 ```
 
-
-> Checkout [Tools example](./TOOLS_CONFIG_EXAMPLE.md) for configuring tools in interactive sessions.
 
 ### Configuration Precedence
 
@@ -187,28 +172,6 @@ mirako avatar status [task-id]
 
 # Delete an avatar
 mirako avatar delete [avatar-id]
-```
-
-### Interactive Sessions
-
-```bash
-# Start a new interactive session using Default profile
-mirako interactive start  
-
-# Start a new interactive session using a specific profile
-mirako interactive start [interactive-profile-name]
-
-# Start a new interactive session using a specific profile with overrides
-mirako interactive start [interactive-profile-name] --instruction "You are an engaging AI assistant that doesn't give up easily."
-
-# Start a new interactive session with custom parameters
-mirako interactive start --avatar [avatar-id] --voice [voice-id] --llm-model [model-id] --instruction "You are a helpful assistant"
-
-# List active sessions
-mirako interactive list
-
-# Stop sessions
-mirako interactive stop [session-id...]
 ```
 
 ### Speech Services
@@ -343,9 +306,6 @@ mirako avatar status [task-id]
 
 # 3. View avatar details (use avatar ID from step 2)
 mirako avatar view [avatar-id]
-
-# 4. Use avatar in interactive session
-mirako interactive start --avatar [avatar-id]
 ```
 
 ### Image Generation Workflow
@@ -380,31 +340,6 @@ mirako video generate --model motion --image path/to/avatar.jpg --audio path/to/
 
 # 3. Check generation status (use task ID from step 1 or 2)
 mirako video status [task-id]
-```
-
-### Interactive Session Management
-
-```bash
-# Start session using Default profile from config.yml
-mirako interactive start
-
-# Start session using named profile from config.yml
-mirako interactive start CustomerSupport
-
-# Start session with specific avatar (overrides profile)
-mirako interactive start --avatar [avatar-id]
-
-# Start session with custom LLM model
-mirako interactive start --avatar [avatar-id] --llm-model gemini-2.0-flash
-
-# Start session using profile with flag overrides
-mirako interactive start CustomerSupport --voice [different-voice-id]
-
-# Monitor active sessions
-mirako interactive list
-
-# Stop multiple sessions
-mirako interactive stop [session-id-1] [session-id-2]
 ```
 
 ## Development
