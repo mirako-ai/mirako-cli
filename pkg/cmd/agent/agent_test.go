@@ -29,7 +29,6 @@ const testAgentJSON = `{
   "description": "Helpful agent",
   "avatar_id": "avatar-1",
   "voice_profile_id": "voice-1",
-  "model": "metis-2.5",
   "instruction": "Be helpful",
   "tools": [{"type":"function","name":"search"}],
   "runtime_kind": "managed_agent",
@@ -46,7 +45,6 @@ const testCustomAgentJSON = `{
   "description": "Custom endpoint agent",
   "avatar_id": "avatar-1",
   "voice_profile_id": "voice-1",
-  "model": "metis-2.5",
   "runtime_kind": "custom_agent",
   "custom_agent_url": "https://agent.example.test/api/chat",
   "custom_agent_protocol": "vercel_ai_sdk",
@@ -62,7 +60,6 @@ const testCustomAgentWithSecretJSON = `{
   "description": "Custom endpoint agent",
   "avatar_id": "avatar-1",
   "voice_profile_id": "voice-1",
-  "model": "metis-2.5",
   "runtime_kind": "custom_agent",
   "custom_agent_url": "https://agent.example.test/api/chat",
   "custom_agent_protocol": "vercel_ai_sdk",
@@ -91,6 +88,26 @@ func TestAgentSDKTypesOmitLlmModel(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestCreateCommandRejectsModelFlag(t *testing.T) {
+	for _, flag := range []string{"--model", "-m"} {
+		t.Run(flag, func(t *testing.T) {
+			cmd := NewAgentCmd()
+			cmd.SetArgs([]string{"create", flag, "metis-2.5"})
+			cmd.SetOut(io.Discard)
+			cmd.SetErr(io.Discard)
+			err := cmd.Execute()
+			if err == nil || !strings.Contains(err.Error(), "unknown") {
+				t.Fatalf("Execute() error = %v, want unknown model flag", err)
+			}
+		})
+	}
+
+	cmd := newCreateCmd()
+	if strings.Contains(cmd.UsageString(), "--model") || cmd.Flags().ShorthandLookup("m") != nil {
+		t.Fatal("create help must not advertise a model flag")
 	}
 }
 
@@ -215,7 +232,6 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 		inputs: map[string]string{
 			"Agent name":                  "Managed Agent",
 			"Description (optional)":      "Helpful managed agent",
-			"Interactive model":           "metis-2.5",
 			"Tools JSON array (optional)": `[{"type":"function","name":"search"}]`,
 		},
 		pathInputs: map[string]string{
@@ -252,7 +268,20 @@ func TestBuildCreateAgentBodyInteractiveManagedPrompts(t *testing.T) {
 	if !containsCall(prompter.calls, "input:Description (optional)") {
 		t.Fatalf("expected interactive description prompt, got calls %v", prompter.calls)
 	}
+	assertJSONFieldAbsent(t, body, "model")
 	assertJSONFieldAbsent(t, body, "llm_model")
+	wantCalls := []string{
+		"select:Agent type",
+		"input:Agent name",
+		"search-select:Choose avatar",
+		"search-select:Choose voice profile",
+		"input:Description (optional)",
+		"path-input:" + instructionFilePromptLabel,
+		"input:Tools JSON array (optional)",
+	}
+	if !reflect.DeepEqual(prompter.calls, wantCalls) {
+		t.Fatalf("prompts = %v, want %v", prompter.calls, wantCalls)
+	}
 	if body.Instruction == nil || *body.Instruction != instruction {
 		t.Fatalf("instruction = %v, want %q", body.Instruction, instruction)
 	}
@@ -276,9 +305,8 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 			"Choose voice profile": "voice-1",
 		},
 		inputs: map[string]string{
-			"Agent name":        "Custom Agent",
-			"Interactive model": "metis-2.5",
-			"Custom agent URL":  "https://agent.example.test/api/chat",
+			"Agent name":       "Custom Agent",
+			"Custom agent URL": "https://agent.example.test/api/chat",
 		},
 		passwords: map[string]string{
 			"Custom agent bearer token (optional)": "super-secret-token",
@@ -311,7 +339,21 @@ func TestBuildCreateAgentBodyInteractiveCustomPrompts(t *testing.T) {
 	if body.CustomAgentProtocol == nil || *body.CustomAgentProtocol != api.CreateAgentInputCustomAgentProtocolVercelAiSdk {
 		t.Fatalf("custom agent protocol = %v, want vercel_ai_sdk", body.CustomAgentProtocol)
 	}
+	assertJSONFieldAbsent(t, body, "model")
 	assertJSONFieldAbsent(t, body, "llm_model")
+	wantCalls := []string{
+		"select:Agent type",
+		"input:Agent name",
+		"search-select:Choose avatar",
+		"search-select:Choose voice profile",
+		"input:Description (optional)",
+		"input:Custom agent URL",
+		"password:Custom agent bearer token (optional)",
+		"input:Custom agent protocol",
+	}
+	if !reflect.DeepEqual(prompter.calls, wantCalls) {
+		t.Fatalf("prompts = %v, want %v", prompter.calls, wantCalls)
+	}
 	if body.Instruction != nil || body.Tools != nil {
 		t.Fatalf("custom agents must not include managed fields: %+v", body)
 	}
@@ -689,12 +731,12 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if len(lines) < 3 {
 			t.Fatalf("expected list output to include header and two rows, got %q", output)
 		}
-		if got, want := strings.Join(strings.Fields(lines[0]), " "), "NAME DESCRIPTION ID RUNTIME MODEL UPDATED"; got != want {
+		if got, want := strings.Join(strings.Fields(lines[0]), " "), "NAME DESCRIPTION ID RUNTIME UPDATED"; got != want {
 			t.Fatalf("list header = %q, want %q; full output %q", got, want, output)
 		}
-		assertContainsInOrder(t, lines[1], "Agent One", "Helpful agent", "agent-1", "managed_agent", "metis-2.5", "2026-")
-		assertContainsInOrder(t, lines[2], "Custom Agent", "Custom endpoint agent", "custom-agent-1", "custom_agent", "metis-2.5", "2026-")
-		for _, removed := range []string{"AVATAR ID", "VOICE ID", "CUSTOM TOKEN", "avatar-1", "voice-1", "true"} {
+		assertContainsInOrder(t, lines[1], "Agent One", "Helpful agent", "agent-1", "managed_agent", "2026-")
+		assertContainsInOrder(t, lines[2], "Custom Agent", "Custom endpoint agent", "custom-agent-1", "custom_agent", "2026-")
+		for _, removed := range []string{"MODEL", "AVATAR ID", "VOICE ID", "CUSTOM TOKEN", "avatar-1", "voice-1", "true"} {
 			if strings.Contains(output, removed) {
 				t.Fatalf("list output should not contain removed column/value %q; got %q", removed, output)
 			}
@@ -754,8 +796,8 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 		if strings.Contains(output, "Description: Helpful agent") || strings.Contains(output, "Custom Agent Bearer Token Configured: false") {
 			t.Fatalf("expected field names and values on separate lines, got %q", output)
 		}
-		if strings.Contains(output, "LLM Model") {
-			t.Fatalf("managed agent view should not show llm model, got %q", output)
+		if strings.Contains(stripANSI(output), "Model") {
+			t.Fatalf("managed agent view should not show a model row, got %q", output)
 		}
 		if strings.Contains(output, "Custom Agent URL") {
 			t.Fatalf("managed agent view should not show custom-agent endpoint fields, got %q", output)
@@ -779,6 +821,9 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			t.Fatalf("runView() returned error: %v", err)
 		}
 		assertNoSecret(t, output)
+		if strings.Contains(stripANSI(output), "Model") {
+			t.Fatalf("custom agent view should not show a model row, got %q", output)
+		}
 		assertFieldOnSeparateLines(t, output, "ID", "custom-agent-1")
 		assertFieldOnSeparateLines(t, output, "Custom Agent URL", "https://agent.example.test/api/chat")
 		assertFieldOnSeparateLines(t, output, "Custom Agent Protocol", "vercel_ai_sdk")
@@ -847,10 +892,12 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 				http.Error(w, "unexpected request body", http.StatusBadRequest)
 				return
 			}
-			if _, ok := raw["llm_model"]; ok {
-				t.Errorf("managed create request included llm_model: %s", string(bodyBytes))
-				http.Error(w, "llm_model present", http.StatusBadRequest)
-				return
+			for _, field := range []string{"model", "llm_model"} {
+				if _, ok := raw[field]; ok {
+					t.Errorf("managed create request included %s: %s", field, string(bodyBytes))
+					http.Error(w, "removed field present", http.StatusBadRequest)
+					return
+				}
 			}
 			if body.RuntimeKind == nil || *body.RuntimeKind != api.CreateAgentInputRuntimeKindManagedAgent {
 				t.Errorf("runtime kind = %v, want managed_agent", body.RuntimeKind)
@@ -865,11 +912,6 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			if body.Description == nil || *body.Description != "Helpful agent" {
 				t.Errorf("description = %v, want Helpful agent", body.Description)
 				http.Error(w, "unexpected description", http.StatusBadRequest)
-				return
-			}
-			if body.Model == nil || *body.Model != "metis-2.5" {
-				t.Errorf("model = %v, want metis-2.5", body.Model)
-				http.Error(w, "unexpected model", http.StatusBadRequest)
 				return
 			}
 			if body.Tools == nil || len(*body.Tools) != 1 {
@@ -889,7 +931,6 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 			"description": "Helpful agent",
 			"avatar":      "avatar-1",
 			"voice":       "voice-1",
-			"model":       "metis-2.5",
 			"instruction": "Be helpful",
 			"tools":       `[{"type":"function","name":"search"}]`,
 		})
@@ -943,7 +984,7 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 				http.Error(w, "unexpected token", http.StatusBadRequest)
 				return
 			}
-			for _, managedField := range []string{"llm_model", "instruction", "tools"} {
+			for _, managedField := range []string{"model", "llm_model", "instruction", "tools"} {
 				if _, ok := raw[managedField]; ok {
 					t.Errorf("custom create request included managed field %s: %s", managedField, string(bodyBytes))
 					http.Error(w, "managed field present", http.StatusBadRequest)
@@ -1047,12 +1088,17 @@ func TestAgentCommandsUseSDKClient(t *testing.T) {
 					http.Error(w, "invalid request body", http.StatusBadRequest)
 					return
 				}
+				if _, ok := raw["model"]; ok {
+					t.Errorf("interactive create request included model: %s", string(bodyBytes))
+					http.Error(w, "model present", http.StatusBadRequest)
+					return
+				}
 				if raw["avatar_id"] != "avatar-2" || raw["voice_profile_id"] != "voice-custom" {
 					t.Errorf("selector IDs were not submitted: %s", string(bodyBytes))
 					http.Error(w, "unexpected selector IDs", http.StatusBadRequest)
 					return
 				}
-				writeJSON(w, http.StatusCreated, `{"data":{"id":"agent-selector","user_id":"user-1","name":"Selector Agent","avatar_id":"avatar-2","voice_profile_id":"voice-custom","model":"metis-2.5","instruction":"Be helpful","tools":[],"runtime_kind":"managed_agent","has_custom_agent_bearer_token":false,"created_at":"2026-05-25T00:00:00Z","updated_at":"2026-05-25T00:01:00Z"}}`)
+				writeJSON(w, http.StatusCreated, `{"data":{"id":"agent-selector","user_id":"user-1","name":"Selector Agent","avatar_id":"avatar-2","voice_profile_id":"voice-custom","instruction":"Be helpful","tools":[],"runtime_kind":"managed_agent","has_custom_agent_bearer_token":false,"created_at":"2026-05-25T00:00:00Z","updated_at":"2026-05-25T00:01:00Z"}}`)
 			default:
 				http.NotFound(w, r)
 			}

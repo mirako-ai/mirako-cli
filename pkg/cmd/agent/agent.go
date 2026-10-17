@@ -11,7 +11,6 @@ import (
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/mirako-ai/mirako-cli/internal/client"
-	"github.com/mirako-ai/mirako-cli/internal/config"
 	apierrors "github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
@@ -134,7 +133,6 @@ func runList(cmd *cobra.Command, args []string) error {
 			optionalString(agent.Description),
 			agent.Id,
 			agent.RuntimeKind,
-			agent.Model,
 			ui.FormatTimestamp(agent.UpdatedAt),
 		})
 	}
@@ -185,7 +183,6 @@ func printAgentDetails(agent api.AgentResponse) error {
 	}
 	printViewField("Avatar ID", agent.AvatarId)
 	printViewField("Voice Profile ID", agent.VoiceProfileId)
-	printViewField("Model", agent.Model)
 	printViewField("Runtime Kind", agent.RuntimeKind)
 	printViewField("Custom Agent Bearer Token Configured", fmt.Sprintf("%t", agent.HasCustomAgentBearerToken))
 
@@ -239,7 +236,6 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringP("description", "d", "", "Description for the agent")
 	cmd.Flags().StringP("avatar", "a", "", "Avatar ID to use")
 	cmd.Flags().StringP("voice", "v", "", "Voice profile ID to use")
-	cmd.Flags().StringP("model", "m", config.DefaultInteractiveModel, "Interactive model to use")
 	cmd.Flags().String("runtime-kind", "", "Runtime kind for the agent (managed_agent or custom_agent)")
 	cmd.Flags().StringP("instruction", "i", "", "Instruction prompt text for managed agents (non-interactive)")
 	cmd.Flags().String("instruction-file", "", "Path to a .txt, .md, or .markdown file containing the managed-agent instruction prompt")
@@ -354,15 +350,6 @@ func buildCreateAgentBody(cmd *cobra.Command, prompter agentPrompter, stdinTTY b
 	}
 	description = strings.TrimSpace(description)
 
-	model := strings.TrimSpace(stringFlag(cmd, "model"))
-	if prompt && !flagChanged(cmd, "model") {
-		model, err = prompter.Input("Interactive model", defaultIfEmpty(model, config.DefaultInteractiveModel), true)
-		if err != nil {
-			return api.CreateAgentJSONRequestBody{}, fmt.Errorf("error getting interactive model: %w", err)
-		}
-		model = strings.TrimSpace(model)
-	}
-
 	body := api.CreateAgentJSONRequestBody{
 		Name:           name,
 		AvatarId:       avatarID,
@@ -371,9 +358,6 @@ func buildCreateAgentBody(cmd *cobra.Command, prompter agentPrompter, stdinTTY b
 	}
 	if description != "" {
 		body.Description = &description
-	}
-	if model != "" {
-		body.Model = &model
 	}
 
 	switch runtimeKind {
@@ -913,13 +897,6 @@ func stringFlag(cmd *cobra.Command, name string) string {
 func flagChanged(cmd *cobra.Command, name string) bool {
 	flag := cmd.Flags().Lookup(name)
 	return flag != nil && flag.Changed
-}
-
-func defaultIfEmpty(value, defaultValue string) string {
-	if strings.TrimSpace(value) == "" {
-		return defaultValue
-	}
-	return value
 }
 
 func formatAPIError(err error, fallback string) error {

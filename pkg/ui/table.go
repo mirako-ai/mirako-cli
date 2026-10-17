@@ -152,17 +152,10 @@ func NewAvatarTable(output io.Writer) *TableWriter {
 	return t
 }
 
-// NewSessionTable creates a table for displaying session information
-func NewSessionTable(output io.Writer) *TableWriter {
-	t := NewTableWriter(output)
-	t.SetHeader([]string{"SESSION ID", "MODEL", "STATE", "START TIME"})
-	return t
-}
-
 // NewAgentTable creates a table for displaying agent information
 func NewAgentTable(output io.Writer) *TableWriter {
 	t := NewTableWriter(output)
-	t.SetHeader([]string{"NAME", "DESCRIPTION", "ID", "RUNTIME", "MODEL", "UPDATED"})
+	t.SetHeader([]string{"NAME", "DESCRIPTION", "ID", "RUNTIME", "UPDATED"})
 	return t
 }
 
