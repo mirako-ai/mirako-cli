@@ -39,7 +39,7 @@ It allows you to:
 - Create and manage AI avatars
 - Generate and upscale images and videos
 - Use speech-to-text and text-to-speech services
-- Clone and manage voice profiles
+- Browse premade voices and manage existing voice profiles
 
 For more information, visit: https://mirako.ai`,
 	SilenceUsage: true,
