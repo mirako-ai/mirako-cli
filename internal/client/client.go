@@ -6,10 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/config"
@@ -23,7 +20,6 @@ const mediaUploadTimeout = 2 * time.Hour
 type Client struct {
 	sdkClient       *sdkclient.Client
 	uploadSDKClient *sdkclient.Client
-	config          *config.Config
 }
 
 func New(cfg *config.Config) (*Client, error) {
@@ -53,7 +49,6 @@ func New(cfg *config.Config) (*Client, error) {
 	return &Client{
 		sdkClient:       sdkClient,
 		uploadSDKClient: uploadSDKClient,
-		config:          cfg,
 	}, nil
 }
 
@@ -614,133 +609,4 @@ func (c *Client) DeleteVoiceProfile(ctx context.Context, profileID string) error
 	defer resp.Body.Close()
 
 	return handleHTTPResponse(resp, "delete voice profile")
-}
-
-func (c *Client) CloneVoice(ctx context.Context, name string, audioDir string, annotationFile string, cleanData bool, description string) (*api.AsyncFinetuningApiResponseBody, error) {
-	body := &bytes.Buffer{}
-	writer := multipart.NewWriter(body)
-
-	if err := writer.WriteField("name", name); err != nil {
-		return nil, fmt.Errorf("failed to write name field: %w", err)
-	}
-
-	cleanDataStr := "false"
-	if cleanData {
-		cleanDataStr = "true"
-	}
-	if err := writer.WriteField("clean_data", cleanDataStr); err != nil {
-		return nil, fmt.Errorf("failed to write clean_data field: %w", err)
-	}
-
-	if description != "" {
-		if err := writer.WriteField("description", description); err != nil {
-			return nil, fmt.Errorf("failed to write description field: %w", err)
-		}
-	}
-
-	annotationFileHandle, err := os.Open(annotationFile)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open annotation file: %w", err)
-	}
-	defer annotationFileHandle.Close()
-
-	annotationWriter, err := writer.CreatePart(map[string][]string{
-		"Content-Disposition": {fmt.Sprintf(`form-data; name="annotation_list"; filename="%s"`, filepath.Base(annotationFile))},
-		"Content-Type":        {"text/plain"},
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create annotation form file: %w", err)
-	}
-
-	if _, err := io.Copy(annotationWriter, annotationFileHandle); err != nil {
-		return nil, fmt.Errorf("failed to write annotation data: %w", err)
-	}
-
-	audioFiles, err := ScanAudioFiles(audioDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to scan audio files: %w", err)
-	}
-
-	if len(audioFiles) == 0 {
-		return nil, fmt.Errorf("no audio files (.wav or .mp3) found in directory: %s", audioDir)
-	}
-
-	fmt.Printf("Uploading %d audio files for voice cloning...\n", len(audioFiles))
-
-	for _, audioFile := range audioFiles {
-		file, err := os.Open(audioFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed to open audio file %s: %w", audioFile, err)
-		}
-
-		audioWriter, err := writer.CreatePart(map[string][]string{
-			"Content-Disposition": {fmt.Sprintf(`form-data; name="audio_samples"; filename="%s"`, filepath.Base(audioFile))},
-			"Content-Type":        {"audio/wav"},
-		})
-		if err != nil {
-			file.Close()
-			return nil, fmt.Errorf("failed to create audio form file: %w", err)
-		}
-
-		if _, err := io.Copy(audioWriter, file); err != nil {
-			file.Close()
-			return nil, fmt.Errorf("failed to write audio data: %w", err)
-		}
-
-		file.Close()
-	}
-
-	writer.Close()
-
-	req, err := http.NewRequestWithContext(ctx, "POST",
-		fmt.Sprintf("%s/v1/voice/clone", c.config.APIURL), body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+c.config.APIToken)
-
-	httpClient := &http.Client{
-		Timeout: 1 * time.Hour,
-	}
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("server returned status %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-
-	var apiResp api.AsyncFinetuningApiResponseBody
-	if err := json.Unmarshal(bodyBytes, &apiResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w (response: %s)", err, string(bodyBytes))
-	}
-
-	return &apiResp, nil
-}
-
-func (c *Client) GetVoiceCloneStatus(ctx context.Context, taskID string) (*api.FinetuningStatusApiResponseBody, error) {
-	resp, err := c.sdkClient.GetVoiceCloningStatus(ctx, taskID)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if err := handleHTTPResponse(resp, "get voice clone status"); err != nil {
-		return nil, err
-	}
-
-	var result api.FinetuningStatusApiResponseBody
-	if err := parseJSONResponse(resp, &result); err != nil {
-		return nil, err
-	}
-	return &result, nil
 }

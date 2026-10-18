@@ -2,17 +2,16 @@ package voice
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"time"
 
 	"github.com/mirako-ai/mirako-cli/internal/client"
 	"github.com/mirako-ai/mirako-cli/internal/errors"
 	"github.com/mirako-ai/mirako-cli/pkg/cmd/util"
 	"github.com/mirako-ai/mirako-cli/pkg/ui"
-	"github.com/mirako-ai/mirako-go/api"
 	"github.com/spf13/cobra"
 )
+
+const voiceCloningRedesignMessage = "Voice cloning feature is being redesigned and will be available soon"
 
 // Language code to friendly label mapping
 var languageLabels = map[string]string{
@@ -42,8 +41,8 @@ func formatLanguages(languages *[]string) string {
 func NewVoiceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "voice",
-		Short: "Manage voice services",
-		Long:  `Manage voice profiles and voice cloning services`,
+		Short: "Manage voice profiles",
+		Long:  `Manage premade and custom voice profiles for TTS`,
 	}
 
 	cmd.AddCommand(newListProfilesCmd())
@@ -172,181 +171,27 @@ func runListCustomProfiles(cmd *cobra.Command, args []string) error {
 func newCloneVoiceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "clone",
-		Short: "Clone a voice from audio samples",
-		Long: `Clone a voice by providing audio samples and annotations.
-
-This command creates a new custom voice profile by training on provided audio samples.
-The process is asynchronous and may take significant time to complete.
-
-Required files:
-- Audio samples: At least 6 .wav or .mp3 files in the specified directory
-- Annotations: text file with training annotations
-
-Example usage:
-   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt
-   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --clean-data
-   mirako voice clone --name "My Voice" --audio-dir ./samples/ --annotations ./annotations.txt --description "Sweet British woman voice"
-
-The command will:
-1. Scan the audio directory for .wav or .mp3 files
-2. Upload files and start training
-3. Poll status until completion
-4. Display the new voice profile ID`,
-		RunE: runCloneVoice,
+		Short: "Voice cloning is being redesigned",
+		Long:  voiceCloningRedesignMessage,
+		RunE:  runCloneVoice,
 	}
 
-	cmd.Flags().StringP("name", "n", "", "Name for the new voice profile (3-64 characters)")
-	cmd.Flags().StringP("audio-dir", "a", "", "Directory containing .wav or .mp3 audio sample files")
-	cmd.Flags().StringP("annotations", "t", "", "Path to annotation file")
-	cmd.Flags().IntP("poll-interval", "p", 10, "Polling interval in seconds for checking status")
-	cmd.Flags().BoolP("clean-data", "c", false, "Enable de-noise processing (default: false)")
-	cmd.Flags().StringP("description", "d", "", "Optional description for the voice profile (max 512 characters)")
+	cmd.Flags().StringP("name", "n", "", "Ignored legacy flag")
+	cmd.Flags().StringP("audio-dir", "a", "", "Ignored legacy flag")
+	cmd.Flags().StringP("annotations", "t", "", "Ignored legacy flag")
+	cmd.Flags().StringP("poll-interval", "p", "10", "Ignored legacy flag")
+	cmd.Flags().StringP("clean-data", "c", "false", "Ignored legacy flag")
+	cmd.Flags().Lookup("clean-data").NoOptDefVal = "true"
+	cmd.Flags().StringP("description", "d", "", "Ignored legacy flag")
 
-	cmd.MarkFlagRequired("name")
-	cmd.MarkFlagRequired("audio-dir")
-	cmd.MarkFlagRequired("annotations")
+	for _, name := range []string{"name", "audio-dir", "annotations", "poll-interval", "clean-data", "description"} {
+		cmd.Flags().MarkHidden(name)
+	}
 
 	return cmd
 }
 
 func runCloneVoice(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
-
-	cfg, err := util.GetConfig(cmd)
-	if err != nil {
-		return fmt.Errorf("failed to load configuration: %w", err)
-	}
-
-	name, _ := cmd.Flags().GetString("name")
-	audioDir, _ := cmd.Flags().GetString("audio-dir")
-	annotations, _ := cmd.Flags().GetString("annotations")
-	pollInterval, _ := cmd.Flags().GetInt("poll-interval")
-	cleanData, _ := cmd.Flags().GetBool("clean-data")
-	description, _ := cmd.Flags().GetString("description")
-
-	// Validate name length
-	if len(name) < 3 || len(name) > 64 {
-		return fmt.Errorf("name must be between 3 and 64 characters")
-	}
-
-	// Validate description length
-	if len(description) > 512 {
-		return fmt.Errorf("description must be 512 characters or less")
-	}
-
-	// Validate directories and files exist
-	if _, err := os.Stat(audioDir); os.IsNotExist(err) {
-		return fmt.Errorf("audio directory does not exist: %s", audioDir)
-	}
-	if _, err := os.Stat(annotations); os.IsNotExist(err) {
-		return fmt.Errorf("annotations file does not exist: %s", annotations)
-	}
-
-	c, err := client.New(cfg)
-	if err != nil {
-		return fmt.Errorf("failed to create client: %w", err)
-	}
-
-	// Validate annotation file and audio files consistency
-	fmt.Printf("🔍 Validating annotation file and audio samples...\n")
-	if err := c.ValidateVoiceCloneInput(audioDir, annotations); err != nil {
-		return fmt.Errorf("validation failed: %w", err)
-	}
-	fmt.Printf("✅ Validation passed!\n")
-
-	// Scan audio files and show count
-	audioFiles, err := client.ScanAudioFiles(audioDir)
-	if err != nil {
-		return fmt.Errorf("failed to scan audio files: %w", err)
-	}
-
-	if len(audioFiles) < 6 {
-		return fmt.Errorf("at least 6 audio files (.wav or .mp3) are required for voice cloning. Found: %d", len(audioFiles))
-	}
-
-	// Start voice cloning
-	fmt.Printf("🎤 Starting voice cloning...\n")
-	fmt.Printf("   Name: %s\n", name)
-	fmt.Printf("   Audio directory: %s\n", audioDir)
-	fmt.Printf("   Annotations file: %s\n", annotations)
-	fmt.Printf("   Found %d audio files\n", len(audioFiles))
-	fmt.Printf("   Clean data: %t\n", cleanData)
-	if description != "" {
-		fmt.Printf("   Description: %s\n", description)
-	}
-
-	resp, err := c.CloneVoice(ctx, name, audioDir, annotations, cleanData, description)
-	if err != nil {
-		if apiErr, ok := errors.IsAPIError(err); ok {
-			return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
-		}
-		return fmt.Errorf("failed to start voice cloning: %w", err)
-	}
-
-	if resp == nil || resp.Data == nil {
-		return fmt.Errorf("unexpected response from server")
-	}
-
-	taskID := resp.Data.TaskId
-	fmt.Printf("✅ Voice cloning started!\n")
-	fmt.Printf("   Task ID: %s\n", taskID)
-
-	// Poll for status until complete
-	fmt.Printf("⏳ Waiting for training to complete...\n")
-
-	// Use separate tickers for polling and spinner animation
-	pollTicker := time.NewTicker(time.Duration(pollInterval) * time.Second)
-	spinnerTicker := time.NewTicker(100 * time.Millisecond)
-	defer pollTicker.Stop()
-	defer spinnerTicker.Stop()
-
-	spinnerFrames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-	spinnerIndex := 0
-	currentStatus := "IN_QUEUE"
-	clearLine := "\r\033[K"
-
-	for {
-		select {
-		case <-ctx.Done():
-			fmt.Print(clearLine)
-			return fmt.Errorf("operation cancelled: %w", ctx.Err())
-		case <-pollTicker.C:
-			statusResp, err := c.GetVoiceCloneStatus(ctx, taskID)
-			if err != nil {
-				fmt.Print(clearLine)
-				if apiErr, ok := errors.IsAPIError(err); ok {
-					return fmt.Errorf("%s", apiErr.GetUserFriendlyMessage())
-				}
-				return fmt.Errorf("failed to check status: %w", err)
-			}
-
-			if statusResp == nil || statusResp.Data == nil {
-				fmt.Print(clearLine)
-				return fmt.Errorf("unexpected response from server")
-			}
-
-			currentStatus = string(statusResp.Data.Status)
-
-			if statusResp.Data.Status == api.FinetuningTaskOutputStatusCOMPLETED {
-				fmt.Print(clearLine)
-				fmt.Printf("✅ Voice cloning completed!\n")
-				fmt.Printf("   Profile ID: %s\n", *statusResp.Data.ProfileId)
-				fmt.Printf("   Task completed successfully\n")
-				return nil
-			} else if statusResp.Data.Status == api.FinetuningTaskOutputStatusFAILED ||
-				statusResp.Data.Status == api.FinetuningTaskOutputStatusCANCELED ||
-				statusResp.Data.Status == api.FinetuningTaskOutputStatusTIMEDOUT {
-				fmt.Print(clearLine)
-				if statusResp.Data.Error != nil && *statusResp.Data.Error != "" {
-					return fmt.Errorf("voice cloning failed: %s", *statusResp.Data.Error)
-				}
-				return fmt.Errorf("voice cloning failed with status: %s", statusResp.Data.Status)
-			}
-			// Continue polling for other statuses
-		case <-spinnerTicker.C:
-			frame := spinnerFrames[spinnerIndex%len(spinnerFrames)]
-			fmt.Printf("\r\033[K%s Status: %s", frame, currentStatus)
-			spinnerIndex++
-		}
-	}
+	_, err := fmt.Fprintln(cmd.OutOrStdout(), voiceCloningRedesignMessage)
+	return err
 }

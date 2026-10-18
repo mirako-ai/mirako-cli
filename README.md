@@ -10,7 +10,7 @@ The official CLI interface for the [Mirako AI](https://mirako.ai) platform, main
 - **🎙️ Speech Services**: Speech-to-text (STT) and text-to-speech (TTS)
 - **🎨 Image Generation & Upscaling**: Create AI-generated images and upscale JPEG, PNG, or WebP inputs
 - **🎬 Video Creation & Upscaling**: Generate talking avatar videos and upscale MP4 videos to 1080p, 2K, or 4K
-- **🗣️ Voice Cloning**: Create and manage custom voice profiles
+- **🗣️ Voice Profiles**: Browse premade voices and manage existing custom profiles
 - **🔐 Secure Authentication**: OAuth 2.0 API token management
 - **⚡ Fast & Lightweight**: Built in Go for optimal performance
 
@@ -261,15 +261,12 @@ mirako voice delete [profile-id]
 
 
 ### Voice Cloning
-```bash
 
-# Voice cloning (Create a custom voice profile)
-mirako voice clone --name "My Custom Voice" --annotations path/to/annotation_file --audio-dir path/to/sample_files_dir  
+`mirako voice clone` displays:
 
+```text
+Voice cloning feature is being redesigned and will be available soon
 ```
-
-> [!NOTE]
-> For the best results, ensure your audio samples are high quality and diverse. Using denoising tools on your sample audio files are highly recommended. If you are hesitated on the quality of the voice samples, use the built-in denoiser by passing the `--clean_data` flag.
 
 
 ## Authentication
