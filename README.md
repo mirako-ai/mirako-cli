@@ -65,7 +65,7 @@ sudo mv mirako /usr/local/bin/mirako
 
 ### Requirements
 
-- **Go 1.24** or later (for building from source)
+- **Go 1.26.10** or later (for building from source)
 - **API Token** from mirako.ai
 
 ## Quick Start
