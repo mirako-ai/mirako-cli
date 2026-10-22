@@ -1,6 +1,6 @@
 module github.com/mirako-ai/mirako-cli
 
-go 1.24.1
+go 1.26.10
 
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 
